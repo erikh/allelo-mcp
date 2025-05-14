@@ -1,0 +1,11 @@
+[package]
+name = "mcp-test"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk", features = ["server","transport-io","transport-sse-server","server"] }
+tokio = { version = "1", features = [ "full" ] }
+thiserror = "*"
+tracing = "*"
+anyhow = "*"
