@@ -1,4 +1,4 @@
-use super::client::Client;
+use super::client::halo::Client;
 use rmcp::{model::*, service::RequestContext, tool, RoleServer, ServerHandler};
 
 #[derive(Debug, Clone, Default)]
