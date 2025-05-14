@@ -1,15 +1,15 @@
 use std::sync::LazyLock;
 
 #[derive(Debug, Clone, Default)]
-pub struct Client {}
+pub(crate) struct Client {}
 
 #[derive(Debug, Clone, Default)]
-pub struct Fault {
+pub(crate) struct Fault {
     summary: String,
 }
 
 impl Fault {
-    pub fn summary(&self) -> String {
+    pub(crate) fn summary(&self) -> String {
         self.summary.clone()
     }
 }
@@ -43,7 +43,7 @@ static MOCK: LazyLock<Vec<Fault>> = LazyLock::new(|| {
 });
 
 impl Client {
-    pub fn list_faults(&self) -> Result<Vec<Fault>, Error> {
+    pub(crate) fn list_faults(&self) -> Result<Vec<Fault>, Error> {
         Ok(MOCK.clone())
     }
 }

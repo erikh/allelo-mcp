@@ -1,2 +1,2 @@
-pub mod halo;
-pub use halo::*;
+pub(crate) mod halo;
+pub(crate) use halo::*;

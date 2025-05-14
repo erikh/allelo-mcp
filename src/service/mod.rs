@@ -8,7 +8,7 @@ impl Service {
     #[tool(
         description = "collect the descriptions of all the faults, which are halo's name for issues or tickets. These will be presented as plain english"
     )]
-    pub fn collect_faults(&self) -> Result<CallToolResult, rmcp::Error> {
+    pub(crate) fn collect_faults(&self) -> Result<CallToolResult, rmcp::Error> {
         let client = super::client::Client {};
         let faults = client.list_faults().map_err(Into::into)?;
         let mut result = Vec::new();
