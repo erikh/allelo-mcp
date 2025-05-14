@@ -1,3 +1,4 @@
+use super::client::Client;
 use rmcp::{model::*, service::RequestContext, tool, RoleServer, ServerHandler};
 
 #[derive(Debug, Clone, Default)]
@@ -9,7 +10,7 @@ impl Service {
         description = "collect the descriptions of all the faults, which are halo's name for issues or tickets. These will be presented as plain english"
     )]
     pub(crate) fn collect_faults(&self) -> Result<CallToolResult, rmcp::Error> {
-        let client = super::client::Client {};
+        let client = Client::default();
         let faults = client.list_faults().map_err(Into::into)?;
         let mut result = Vec::new();
         for fault in faults {
