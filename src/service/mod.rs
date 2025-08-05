@@ -1,26 +1,22 @@
-use super::client::halo::Client;
-use rmcp::{model::*, service::RequestContext, tool, RoleServer, ServerHandler};
+use rmcp::{
+    handler::server::router::tool::ToolRouter, model::*, service::RequestContext, tool,
+    tool_handler, tool_router, RoleServer, ServerHandler,
+};
 
 #[derive(Debug, Clone, Default)]
-pub(crate) struct Service {}
+pub(crate) struct Service {
+    tool_router: ToolRouter<Self>,
+}
 
-#[tool(tool_box)]
+#[tool_router]
 impl Service {
-    #[tool(
-        description = "collect the descriptions of all the faults, which are halo's name for issues or tickets. These will be presented as plain english"
-    )]
-    pub(crate) fn collect_faults(&self) -> Result<CallToolResult, rmcp::Error> {
-        let client = Client::default();
-        let faults = client.list_faults().map_err(Into::into)?;
-        let mut result = Vec::new();
-        for fault in faults {
-            result.push(Content::text(fault.summary()))
-        }
-        Ok(CallToolResult::success(result))
+    #[tool(description = "example tool")]
+    pub(crate) fn example_tool(&self) -> String {
+        String::new()
     }
 }
 
-#[tool(tool_box)]
+#[tool_handler]
 impl ServerHandler for Service {
     fn get_info(&self) -> ServerInfo {
         ServerInfo {
@@ -39,7 +35,7 @@ impl ServerHandler for Service {
         &self,
         _request: Option<PaginatedRequestParam>,
         _: RequestContext<RoleServer>,
-    ) -> Result<ListPromptsResult, rmcp::Error> {
+    ) -> Result<ListPromptsResult, rmcp::ErrorData> {
         Ok(ListPromptsResult {
             next_cursor: None,
             prompts: vec![Prompt::new(

@@ -1,4 +1,3 @@
-mod client;
 mod service;
 
 use anyhow::Result;
