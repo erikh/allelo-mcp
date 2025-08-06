@@ -6,7 +6,7 @@ use rmcp::{
 };
 
 #[derive(Debug, Clone, Default)]
-pub(crate) struct Service {
+pub struct Service {
     tool_router: ToolRouter<Self>,
 }
 
