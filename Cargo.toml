@@ -14,5 +14,8 @@ axum = { version = "*", features = [ "tokio", "http1", "http2", "macros" ] }
 axum-server = "*" 
 serde = { version = "*", features = [ "derive" ] }
 serde_json = "*"
+serde_yaml_ng = "*"
 tower-http = { version = "*", features = [ "cors", "trace" ] }
 problem_details = { version = "*", features = [ "serde", "json", "axum" ] }
+http = "*"
+tower = "*"
