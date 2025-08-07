@@ -19,3 +19,4 @@ tower-http = { version = "*", features = [ "cors", "trace" ] }
 problem_details = { version = "*", features = [ "serde", "json", "axum" ] }
 http = "*"
 tower = "*"
+uuid = "*"

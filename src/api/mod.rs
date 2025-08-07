@@ -1,5 +1,5 @@
 use axum::{
-    extract::{FromRequestParts, State},
+    extract::{Json, State},
     http::{request::Parts, StatusCode},
     response::{IntoResponse, Response},
     routing::{delete, get, post, put},
@@ -7,9 +7,10 @@ use axum::{
 };
 use http::{header::*, Method};
 use problem_details::ProblemDetails;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::{
     any::{Any, TypeId},
+    collections::HashMap,
     net::SocketAddr,
     path::PathBuf,
     sync::Arc,
@@ -153,7 +154,30 @@ async fn shutdown_signal(handle: axum_server::Handle) {
     handle.graceful_shutdown(Some(std::time::Duration::from_secs(10)));
 }
 
-pub(crate) async fn prompt(State(_state): State<Arc<ServerState>>) -> Result<()> {
+// input struct for prompt API
+#[derive(Debug, Clone, Deserialize)]
+pub struct Prompt {
+    prompt: String,
+}
+
+// Response enum for prompt SSE events. Ingested by client which proxies to MCP, or directly to
+// the client depending on what response is sent. Server should always send Connection first and
+// client should expect that. From there, until the connection is interrupted, all connections are
+// assumed to be from the same transaction ID (a UUID).
+#[derive(Debug, Clone, Serialize)]
+pub enum PromptResponse<T>
+where
+    T: serde::Serialize,
+{
+    Connection(String),
+    PromptResponse(String),
+    McpRequest(HashMap<String, Box<T>>),
+}
+
+pub(crate) async fn prompt(
+    State(_state): State<Arc<ServerState>>,
+    Json(_prompt): Json<Prompt>,
+) -> Result<()> {
     Ok(())
 }
 
