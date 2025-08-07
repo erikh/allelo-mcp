@@ -16,7 +16,7 @@ use std::{
 };
 
 use tower::ServiceBuilder;
-use tower_http::cors::{Any as TowerAny, CorsLayer};
+use tower_http::cors::{Any as CorsAny, CorsLayer};
 use tower_http::trace::{DefaultMakeSpan, DefaultOnFailure, DefaultOnRequest};
 use tracing::Level;
 
@@ -105,7 +105,7 @@ impl Server {
                                 Method::TRACE,
                                 Method::OPTIONS,
                             ])
-                            .allow_origin(TowerAny)
+                            .allow_origin(CorsAny)
                             .allow_headers([CONTENT_TYPE, ACCEPT, AUTHORIZATION])
                             .allow_private_network(true),
                     ),
