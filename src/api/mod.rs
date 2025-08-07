@@ -87,6 +87,8 @@ impl Server {
         Ok(Self {
             router: Router::new()
                 .route("/prompt", post(prompt))
+                .route("/status", get(status))
+                .route("/metrics", get(metrics))
                 .with_state(Arc::new(ServerState {}))
                 .layer(
                     ServiceBuilder::new()
@@ -152,5 +154,13 @@ async fn shutdown_signal(handle: axum_server::Handle) {
 }
 
 pub(crate) async fn prompt(State(_state): State<Arc<ServerState>>) -> Result<()> {
+    Ok(())
+}
+
+pub(crate) async fn metrics(State(_state): State<Arc<ServerState>>) -> Result<()> {
+    Ok(())
+}
+
+pub(crate) async fn status(State(_state): State<Arc<ServerState>>) -> Result<()> {
     Ok(())
 }
