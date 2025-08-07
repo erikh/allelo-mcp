@@ -151,6 +151,6 @@ async fn shutdown_signal(handle: axum_server::Handle) {
     handle.graceful_shutdown(Some(std::time::Duration::from_secs(10)));
 }
 
-pub(crate) async fn prompt(State(state): State<Arc<ServerState>>) -> Result<()> {
+pub(crate) async fn prompt(State(_state): State<Arc<ServerState>>) -> Result<()> {
     Ok(())
 }
