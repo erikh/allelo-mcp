@@ -181,10 +181,16 @@ pub(crate) async fn prompt(
     Ok(())
 }
 
-pub(crate) async fn metrics(State(_state): State<Arc<ServerState>>) -> Result<()> {
-    Ok(())
+#[derive(Debug, Clone, Serialize)]
+pub struct Metrics {}
+
+pub(crate) async fn metrics(State(_state): State<Arc<ServerState>>) -> Result<Json<Metrics>> {
+    Ok(Json::from(Metrics {}))
 }
 
-pub(crate) async fn status(State(_state): State<Arc<ServerState>>) -> Result<()> {
-    Ok(())
+#[derive(Debug, Clone, Serialize)]
+pub struct Status {}
+
+pub(crate) async fn status(State(_state): State<Arc<ServerState>>) -> Result<Json<Status>> {
+    Ok(Json::from(Status {}))
 }
