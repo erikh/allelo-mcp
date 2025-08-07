@@ -20,3 +20,5 @@ problem_details = { version = "*", features = [ "serde", "json", "axum" ] }
 http = "*"
 tower = "*"
 uuid = "*"
+tokio-stream = "*"
+futures-util = "*"
