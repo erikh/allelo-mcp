@@ -1,5 +1,5 @@
 use axum::{
-    extract::FromRequestParts,
+    extract::{FromRequestParts, State},
     http::{request::Parts, StatusCode},
     response::{IntoResponse, Response},
     routing::{delete, get, post, put},
@@ -85,31 +85,34 @@ pub struct Server {
 impl Server {
     pub async fn new(config: Config) -> anyhow::Result<Self> {
         Ok(Self {
-            router: Router::new().with_state(Arc::new(ServerState {})).layer(
-                ServiceBuilder::new()
-                    .layer(
-                        tower_http::trace::TraceLayer::new_for_http()
-                            .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
-                            .on_request(DefaultOnRequest::new().level(Level::INFO))
-                            .on_failure(DefaultOnFailure::new().level(Level::ERROR)),
-                    )
-                    .layer(
-                        CorsLayer::new()
-                            .allow_methods([
-                                Method::GET,
-                                Method::POST,
-                                Method::DELETE,
-                                Method::PUT,
-                                Method::PATCH,
-                                Method::HEAD,
-                                Method::TRACE,
-                                Method::OPTIONS,
-                            ])
-                            .allow_origin(CorsAny)
-                            .allow_headers([CONTENT_TYPE, ACCEPT, AUTHORIZATION])
-                            .allow_private_network(true),
-                    ),
-            ),
+            router: Router::new()
+                .route("/prompt", post(prompt))
+                .with_state(Arc::new(ServerState {}))
+                .layer(
+                    ServiceBuilder::new()
+                        .layer(
+                            tower_http::trace::TraceLayer::new_for_http()
+                                .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
+                                .on_request(DefaultOnRequest::new().level(Level::INFO))
+                                .on_failure(DefaultOnFailure::new().level(Level::ERROR)),
+                        )
+                        .layer(
+                            CorsLayer::new()
+                                .allow_methods([
+                                    Method::GET,
+                                    Method::POST,
+                                    Method::DELETE,
+                                    Method::PUT,
+                                    Method::PATCH,
+                                    Method::HEAD,
+                                    Method::TRACE,
+                                    Method::OPTIONS,
+                                ])
+                                .allow_origin(CorsAny)
+                                .allow_headers([CONTENT_TYPE, ACCEPT, AUTHORIZATION])
+                                .allow_private_network(true),
+                        ),
+                ),
             config: config.clone(),
         })
     }
@@ -146,4 +149,8 @@ async fn shutdown_signal(handle: axum_server::Handle) {
 
     tracing::warn!("signal received, starting graceful shutdown");
     handle.graceful_shutdown(Some(std::time::Duration::from_secs(10)));
+}
+
+pub(crate) async fn prompt(State(state): State<Arc<ServerState>>) -> Result<()> {
+    Ok(())
 }
