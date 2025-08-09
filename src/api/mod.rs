@@ -18,6 +18,7 @@ use std::{
     net::SocketAddr,
     path::PathBuf,
     sync::Arc,
+    time::Duration,
 };
 use tokio_stream::StreamExt;
 use tower::ServiceBuilder;
@@ -181,8 +182,11 @@ where
 pub(crate) async fn prompt(
     State(_state): State<Arc<ServerState>>,
     Json(_prompt): Json<Prompt>,
-) -> Result<()> {
-    Ok(())
+) -> Result<Sse<impl Stream<Item = std::result::Result<Event, std::convert::Infallible>>>> {
+    let stream = stream::repeat_with(|| Event::default().data("hi!"))
+        .map(Ok)
+        .throttle(Duration::from_secs(1));
+    Ok(Sse::new(stream).keep_alive(KeepAlive::default()))
 }
 
 #[derive(Debug, Clone, Serialize)]
