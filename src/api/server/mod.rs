@@ -146,7 +146,7 @@ async fn shutdown_signal(handle: axum_server::Handle) {
 }
 
 // input struct for prompt API
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Prompt {
     #[allow(unused)]
     prompt: String,
@@ -156,7 +156,7 @@ pub struct Prompt {
 // the client depending on what response is sent. Server should always send Connection first and
 // client should expect that. From there, until the connection is interrupted, all connections are
 // assumed to be from the same transaction ID (a UUID).
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PromptResponse<T>
 where
     T: serde::Serialize,
@@ -176,14 +176,14 @@ pub(crate) async fn prompt(
     Ok(Sse::new(stream).keep_alive(KeepAlive::default()))
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Metrics {}
 
 pub(crate) async fn metrics(State(_state): State<Arc<ServerState>>) -> Result<Json<Metrics>> {
     Ok(Json::from(Metrics {}))
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Status {}
 
 pub(crate) async fn status(State(_state): State<Arc<ServerState>>) -> Result<Json<Status>> {
