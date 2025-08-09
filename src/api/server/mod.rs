@@ -1,4 +1,6 @@
 mod config;
+#[cfg(test)]
+mod tests;
 pub use self::config::*;
 
 use axum::{
@@ -107,6 +109,10 @@ impl Server {
 
     pub async fn start(&self) -> anyhow::Result<()> {
         let handle = axum_server::Handle::new();
+        self.start_with_handle(handle).await
+    }
+
+    pub async fn start_with_handle(&self, handle: axum_server::Handle) -> anyhow::Result<()> {
         tokio::spawn(shutdown_signal(handle.clone()));
         Ok(axum_server::bind(self.config.listen)
             .handle(handle)
