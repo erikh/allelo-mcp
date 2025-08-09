@@ -1,11 +1,13 @@
+mod config;
+pub use self::config::*;
+
 use axum::{
     extract::{Json, State},
-    http::{request::Parts, StatusCode},
     response::{
         sse::{Event, KeepAlive, Sse},
         IntoResponse, Response,
     },
-    routing::{delete, get, post, put},
+    routing::{get, post},
     Router,
 };
 use futures_util::stream::{self, Stream};
@@ -15,8 +17,6 @@ use serde::{Deserialize, Serialize};
 use std::{
     any::{Any, TypeId},
     collections::HashMap,
-    net::SocketAddr,
-    path::PathBuf,
     sync::Arc,
     time::Duration,
 };
@@ -25,26 +25,6 @@ use tower::ServiceBuilder;
 use tower_http::cors::{Any as CorsAny, CorsLayer};
 use tower_http::trace::{DefaultMakeSpan, DefaultOnFailure, DefaultOnRequest};
 use tracing::Level;
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct Config {
-    listen: SocketAddr,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Config {
-            listen: "127.0.0.1:8999".parse().unwrap(),
-        }
-    }
-}
-
-impl Config {
-    pub fn from_file(filename: PathBuf) -> anyhow::Result<Self> {
-        let r = std::fs::OpenOptions::new().read(true).open(filename)?;
-        Ok(serde_yaml_ng::from_reader(r)?)
-    }
-}
 
 pub(crate) type Result<T> = core::result::Result<T, AppError>;
 
@@ -162,6 +142,7 @@ async fn shutdown_signal(handle: axum_server::Handle) {
 // input struct for prompt API
 #[derive(Debug, Clone, Deserialize)]
 pub struct Prompt {
+    #[allow(unused)]
     prompt: String,
 }
 
