@@ -1,7 +1,7 @@
-#![allow(unused)]
+#![allow(dead_code)]
 
 use super::McpRequest;
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 
