@@ -177,7 +177,7 @@ pub(crate) async fn prompt(
 ) -> Result<Sse<impl Stream<Item = std::result::Result<Event, std::convert::Infallible>>>> {
     let stream = stream::repeat_with(|| Event::default().data("hi!"))
         .map(Ok)
-        .throttle(Duration::from_secs(1));
+        .throttle(Duration::from_millis(10));
     Ok(Sse::new(stream).keep_alive(KeepAlive::default()))
 }
 

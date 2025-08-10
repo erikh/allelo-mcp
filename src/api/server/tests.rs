@@ -1,11 +1,11 @@
 use super::*;
-use crate::testutil::{shutdown_handle, start_api_server, DEFAULT_API_URL};
+use crate::testutil::{default_api_url, shutdown_handle, start_api_server};
 use reqwest_eventsource::Event;
 
 #[tokio::test]
 async fn test_sse() {
     let handle = start_api_server(Config::default()).await.unwrap();
-    let client = super::super::client::Client::new(DEFAULT_API_URL.parse().unwrap());
+    let client = super::super::client::Client::new(default_api_url());
     let mut r = client
         .prompt(Prompt {
             connection_id: Default::default(),
