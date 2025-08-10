@@ -188,12 +188,11 @@ mod tests {
             s.send(Ok(())).await.unwrap();
         });
 
-        if let Some(Err(e)) = r.recv().await {
-            assert!(false, "{}", e);
-        }
-
-        if let Some(Err(e)) = r.recv().await {
-            assert!(false, "{}", e);
+        // two futures, two potential errors
+        for _ in 0..2 {
+            if let Some(Err(e)) = r.recv().await {
+                assert!(false, "{}", e);
+            }
         }
 
         let proxy = broker.get_prompt(id).unwrap();
