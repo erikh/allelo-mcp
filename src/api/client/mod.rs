@@ -1,4 +1,5 @@
 use super::server::Prompt;
+use anyhow::Result;
 use futures_util::StreamExt;
 use reqwest_eventsource::Event;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver};
@@ -8,7 +9,7 @@ pub struct Client {
     base_url: url::Url,
 }
 
-pub type SseResult = Result<UnboundedReceiver<Result<Event, anyhow::Error>>, anyhow::Error>;
+pub type SseResult = Result<UnboundedReceiver<Result<Event>>>;
 
 impl Client {
     pub fn new(base_url: url::Url) -> Self {
