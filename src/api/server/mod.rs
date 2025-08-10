@@ -1,3 +1,4 @@
+mod broker;
 mod config;
 #[cfg(test)]
 mod tests;
@@ -18,7 +19,6 @@ use problem_details::ProblemDetails;
 use serde::{Deserialize, Serialize};
 use std::{
     any::{Any, TypeId},
-    collections::HashMap,
     sync::Arc,
     time::Duration,
 };
@@ -27,6 +27,14 @@ use tower::ServiceBuilder;
 use tower_http::cors::{Any as CorsAny, CorsLayer};
 use tower_http::trace::{DefaultMakeSpan, DefaultOnFailure, DefaultOnRequest};
 use tracing::Level;
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct McpRequest {
+    connection_id: String,
+    command: String,
+    mcp_route: String,
+    mcp_route_id: String,
+}
 
 pub(crate) type Result<T> = core::result::Result<T, AppError>;
 
@@ -148,7 +156,7 @@ async fn shutdown_signal(handle: axum_server::Handle) {
 // input struct for prompt API
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Prompt {
-    #[allow(unused)]
+    connection_id: uuid::Uuid,
     prompt: String,
 }
 
@@ -157,13 +165,10 @@ pub struct Prompt {
 // client should expect that. From there, until the connection is interrupted, all connections are
 // assumed to be from the same transaction ID (a UUID).
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum PromptResponse<T>
-where
-    T: serde::Serialize,
-{
-    Connection(String),
+pub enum PromptResponse {
+    Connection(uuid::Uuid),
     PromptResponse(String),
-    McpRequest(HashMap<String, Box<T>>),
+    McpRequest(McpRequest),
 }
 
 pub(crate) async fn prompt(

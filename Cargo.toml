@@ -19,7 +19,7 @@ tower-http = { version = "*", features = [ "cors", "trace" ] }
 problem_details = { version = "*", features = [ "serde", "json", "axum" ] }
 http = "*"
 tower = "*"
-uuid = "*"
+uuid = { version = "*", features = [ "serde" ] }
 tokio-stream = "*"
 futures-util = "*"
 reqwest-eventsource = { version = "*", git = "https://github.com/erikh/reqwest-eventsource" }

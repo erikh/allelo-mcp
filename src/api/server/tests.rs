@@ -8,6 +8,7 @@ async fn test_sse() {
     let client = super::super::client::Client::new("http://localhost:8999".parse().unwrap());
     let mut r = client
         .prompt(Prompt {
+            connection_id: Default::default(),
             prompt: "hello, world".into(),
         })
         .await
