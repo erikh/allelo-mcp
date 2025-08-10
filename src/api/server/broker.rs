@@ -148,4 +148,56 @@ mod tests {
         let lock = proxy.lock().await;
         assert_ne!(lock.last_message, start);
     }
+
+    #[tokio::test]
+    async fn test_broker_modify_last_message_on_recv() {
+        let mut broker = Broker::default();
+
+        let id = broker.create_prompt().unwrap();
+        let proxy = broker.get_prompt(id).unwrap();
+        let lock = proxy.lock().await;
+        let start = lock.last_message.clone();
+        drop(lock);
+
+        let (s, mut r) = channel(2);
+
+        // cheat a little for the sender so we know it doesn't modify last message
+        let b = broker.clone();
+        let s2 = s.clone();
+        tokio::spawn(async move {
+            let proxy = b.get_prompt(id).unwrap();
+            let lock = proxy.lock().await;
+            for _ in 0..CHANNEL_SIZE {
+                match lock.pipe.sender.send(Default::default()).await {
+                    Err(e) => s2.send(Err(e)).await.unwrap(),
+                    _ => {}
+                }
+            }
+
+            s2.send(Ok(())).await.unwrap();
+        });
+
+        let b = broker.clone();
+        tokio::spawn(async move {
+            let proxy = b.get_prompt(id).unwrap();
+            let mut lock = proxy.lock().await;
+            for _ in 0..CHANNEL_SIZE {
+                lock.next_message().await;
+            }
+
+            s.send(Ok(())).await.unwrap();
+        });
+
+        if let Some(Err(e)) = r.recv().await {
+            assert!(false, "{}", e);
+        }
+
+        if let Some(Err(e)) = r.recv().await {
+            assert!(false, "{}", e);
+        }
+
+        let proxy = broker.get_prompt(id).unwrap();
+        let lock = proxy.lock().await;
+        assert_ne!(lock.last_message, start);
+    }
 }
