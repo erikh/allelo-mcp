@@ -71,30 +71,32 @@ where
 // memory and will likely need to be replaced with a dedicated queue before using in production.
 #[derive(Debug, Clone, Default)]
 pub struct Broker {
-    mcp: HashMap<uuid::Uuid, Arc<BrokerProxy<McpRequest>>>,
-    prompt: HashMap<uuid::Uuid, Arc<BrokerProxy<String>>>,
+    mcp: HashMap<uuid::Uuid, Arc<Mutex<BrokerProxy<McpRequest>>>>,
+    prompt: HashMap<uuid::Uuid, Arc<Mutex<BrokerProxy<String>>>>,
 }
 
 impl Broker {
     // FIXME: replace anyhow with thiserror here
     pub fn create_mcp(&mut self) -> Result<uuid::Uuid> {
         let uuid = Uuid::new_v4();
-        self.mcp.insert(uuid, Arc::new(BrokerProxy::new()));
+        self.mcp
+            .insert(uuid, Arc::new(Mutex::new(BrokerProxy::new())));
         Ok(uuid)
     }
 
     // FIXME: replace anyhow with thiserror here
     pub fn create_prompt(&mut self) -> Result<uuid::Uuid> {
         let uuid = Uuid::new_v4();
-        self.prompt.insert(uuid, Arc::new(BrokerProxy::new()));
-        Ok(Default::default())
+        self.prompt
+            .insert(uuid, Arc::new(Mutex::new(BrokerProxy::new())));
+        Ok(uuid)
     }
 
-    pub fn get_mcp(&self, id: uuid::Uuid) -> Option<Arc<BrokerProxy<McpRequest>>> {
+    pub fn get_mcp(&self, id: uuid::Uuid) -> Option<Arc<Mutex<BrokerProxy<McpRequest>>>> {
         self.mcp.get(&id).cloned()
     }
 
-    pub fn get_prompt(&self, id: uuid::Uuid) -> Option<Arc<BrokerProxy<String>>> {
+    pub fn get_prompt(&self, id: uuid::Uuid) -> Option<Arc<Mutex<BrokerProxy<String>>>> {
         self.prompt.get(&id).cloned()
     }
 
@@ -104,5 +106,46 @@ impl Broker {
 
     pub fn expire_prompt(&mut self, id: uuid::Uuid) {
         self.prompt.remove(&id);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::api::server::broker::{Broker, CHANNEL_SIZE};
+    use tokio::sync::mpsc::channel;
+
+    #[tokio::test]
+    async fn test_broker() {
+        let mut broker = Broker::default();
+
+        let id = broker.create_prompt().unwrap();
+        let proxy = broker.get_prompt(id).unwrap();
+        let lock = proxy.lock().await;
+        let start = lock.last_message.clone();
+        drop(lock);
+
+        let (s, mut r) = channel(1);
+
+        let b = broker.clone();
+        tokio::spawn(async move {
+            for _ in 0..CHANNEL_SIZE {
+                let proxy = b.get_prompt(id).unwrap();
+                let mut lock = proxy.lock().await;
+                match lock.send_message(Default::default()).await {
+                    Err(e) => s.send(Err(e)).await.unwrap(),
+                    _ => {}
+                }
+            }
+
+            s.send(Ok(())).await.unwrap();
+        });
+
+        if let Some(Err(e)) = r.recv().await {
+            assert!(false, "{}", e);
+        }
+
+        let proxy = broker.get_prompt(id).unwrap();
+        let lock = proxy.lock().await;
+        assert_ne!(lock.last_message, start);
     }
 }
