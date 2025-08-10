@@ -115,7 +115,7 @@ mod tests {
     use tokio::sync::mpsc::channel;
 
     #[tokio::test]
-    async fn test_broker() {
+    async fn test_broker_modify_last_message_on_send() {
         let mut broker = Broker::default();
 
         let id = broker.create_prompt().unwrap();
