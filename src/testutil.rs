@@ -1,6 +1,8 @@
 use crate::api::server::*;
 use anyhow::Result;
 
+pub(crate) const DEFAULT_API_URL: &str = "http://localhost:8999";
+
 pub async fn start_api_server(config: Config) -> Result<axum_server::Handle> {
     let handle = axum_server::Handle::new();
     let server = Server::new(config).await?;
