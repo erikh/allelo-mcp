@@ -1,5 +1,0 @@
-- prompt with user info
-- resume prompt with user info and cache id (??)
-- status of API service/LLM
-- status of backend and mcp
-- metrics?
