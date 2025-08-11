@@ -112,6 +112,7 @@ impl Broker {
 #[cfg(test)]
 mod tests {
     use crate::api::server::broker::{Broker, CHANNEL_SIZE};
+    use anyhow::anyhow;
     use tokio::sync::mpsc::channel;
 
     #[tokio::test]
@@ -169,7 +170,7 @@ mod tests {
             let lock = proxy.lock().await;
             for _ in 0..CHANNEL_SIZE {
                 match lock.pipe.sender.send("hello, world!".into()).await {
-                    Err(e) => s2.send(Err(e)).await.unwrap(),
+                    Err(e) => s2.send(Err(anyhow!(e))).await.unwrap(),
                     _ => {}
                 }
             }
@@ -182,9 +183,22 @@ mod tests {
             let proxy = b.get_prompt(id).unwrap();
             let mut lock = proxy.lock().await;
             for _ in 0..CHANNEL_SIZE {
-                let obj = lock.next_message().await;
-                assert!(obj.is_some());
-                assert_eq!(obj.unwrap(), "hello, world!");
+                match lock.next_message().await {
+                    Some(x) => {
+                        if x != "hello, world!" {
+                            s.send(Err(anyhow!("input and output didn't match")))
+                                .await
+                                .unwrap();
+                            return;
+                        }
+                    }
+                    None => {
+                        s.send(Err(anyhow!("message was not returned")))
+                            .await
+                            .unwrap();
+                        return;
+                    }
+                }
             }
 
             s.send(Ok(())).await.unwrap();
