@@ -1,4 +1,4 @@
-use crate::api::server::*;
+use crate::api::server::{broker::BrokerProxy, *};
 use anyhow::Result;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -25,7 +25,7 @@ pub fn shutdown_handle(handle: axum_server::Handle) {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct TestConnection<T>
 where
     T: Sync + Send + 'static,
@@ -39,12 +39,12 @@ impl<T> TestConnection<T>
 where
     T: Sync + Send + 'static,
 {
-    pub fn new() -> Self {
+    pub fn new(proxy: BrokerProxy<T>) -> Self {
         let (s, r) = channel(broker::CHANNEL_SIZE);
 
         let done = Arc::new(AtomicBool::default());
         let done2 = done.clone();
-        tokio::spawn(async move { Self::serve(r, done2).await.unwrap() });
+        tokio::spawn(async move { Self::serve(r, done2, proxy).await.unwrap() });
         Self { input: s, done }
     }
 
@@ -52,11 +52,17 @@ where
         self.done.store(true, Ordering::Relaxed);
     }
 
-    async fn serve(mut r: Receiver<T>, done: Arc<AtomicBool>) -> Result<()> {
-        while let Some(_x) = r.recv().await {
+    async fn serve(
+        mut r: Receiver<T>,
+        done: Arc<AtomicBool>,
+        mut proxy: BrokerProxy<T>,
+    ) -> Result<()> {
+        while let Some(x) = r.recv().await {
             if done.load(Ordering::Relaxed) {
                 return Ok(());
             }
+
+            proxy.send_message(x).await?;
         }
 
         Ok(())
