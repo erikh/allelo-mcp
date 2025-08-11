@@ -1,4 +1,4 @@
-mod broker;
+pub(crate) mod broker;
 mod config;
 #[cfg(test)]
 mod tests;

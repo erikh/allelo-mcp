@@ -1,5 +1,4 @@
 #![allow(dead_code)]
-
 use super::McpRequest;
 use anyhow::Result;
 use std::{
@@ -16,7 +15,7 @@ use uuid::Uuid;
 pub type GlobalBroker = Arc<Mutex<Broker>>;
 pub static GLOBAL_BROKER: LazyLock<GlobalBroker> = LazyLock::new(|| Default::default());
 
-const CHANNEL_SIZE: usize = 1000;
+pub(crate) const CHANNEL_SIZE: usize = 1000;
 
 #[derive(Debug)]
 pub struct BrokerProxy<T> {
