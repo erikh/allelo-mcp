@@ -15,6 +15,7 @@ use uuid::Uuid;
 pub type GlobalBroker = Arc<Mutex<Broker>>;
 pub static GLOBAL_BROKER: LazyLock<GlobalBroker> = LazyLock::new(|| Default::default());
 pub(crate) const CHANNEL_SIZE: usize = 1000;
+const TIMEOUT_SECS: u64 = 600;
 
 #[derive(Debug)]
 pub struct BrokerProxy<T, R> {
@@ -40,6 +41,13 @@ where
 
     pub fn input(&mut self) -> &mut BrokerPipe<T> {
         &mut self.input
+    }
+
+    pub fn check_timeout(&self) -> bool {
+        std::time::Instant::now() - std::time::Duration::from_secs(TIMEOUT_SECS)
+            > self.output.last_message()
+            || std::time::Instant::now() - std::time::Duration::from_secs(TIMEOUT_SECS)
+                > self.input.last_message()
     }
 }
 
@@ -75,6 +83,10 @@ where
             self.last_message = Instant::now();
             x
         })?)
+    }
+
+    pub fn last_message(&self) -> Instant {
+        self.last_message.clone()
     }
 }
 

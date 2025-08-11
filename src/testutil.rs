@@ -83,7 +83,7 @@ where
                     proxy.output().send_message(x.into()).await?;
                 }
                 else => {
-                    if done.load(Ordering::Relaxed) {
+                    if done.load(Ordering::Relaxed) || proxy.check_timeout() {
                         return Ok(());
                     }
                 }
