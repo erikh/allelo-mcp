@@ -2,7 +2,7 @@ pub(crate) mod broker;
 mod config;
 #[cfg(test)]
 mod tests;
-mod translator;
+pub(crate) mod translator;
 pub use self::config::*;
 
 use axum::{

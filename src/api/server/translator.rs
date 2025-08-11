@@ -1,4 +1,7 @@
+use super::broker::BrokerProxy;
 use anyhow::Result;
+use std::sync::{atomic::AtomicBool, Arc};
+use tokio::sync::mpsc::Receiver;
 
 #[allow(dead_code)]
 #[async_trait::async_trait]
@@ -7,6 +10,9 @@ where
     T: Send + Sync + 'static,
     R: Send + Sync + 'static,
 {
-    async fn send(&self, input: T) -> Result<()>;
-    async fn recv(&self) -> Result<R>;
+    async fn serve(
+        mut r: Receiver<T>,
+        done: Arc<AtomicBool>,
+        mut proxy: BrokerProxy<T, R>,
+    ) -> Result<()>;
 }
