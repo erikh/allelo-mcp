@@ -14,7 +14,6 @@ use uuid::Uuid;
 
 pub type GlobalBroker = Arc<Mutex<Broker>>;
 pub static GLOBAL_BROKER: LazyLock<GlobalBroker> = LazyLock::new(|| Default::default());
-
 pub(crate) const CHANNEL_SIZE: usize = 1000;
 
 #[derive(Debug)]
@@ -76,18 +75,20 @@ pub struct Broker {
 
 impl Broker {
     // FIXME: replace anyhow with thiserror here
-    pub fn create_mcp(&mut self) -> Result<uuid::Uuid> {
+    pub fn create_mcp<T>(&mut self) -> Result<uuid::Uuid> {
         let uuid = Uuid::new_v4();
-        self.mcp
-            .insert(uuid, Arc::new(Mutex::new(BrokerProxy::new())));
+        let proxy = Arc::new(Mutex::new(BrokerProxy::new()));
+        self.mcp.insert(uuid, proxy);
+
         Ok(uuid)
     }
 
     // FIXME: replace anyhow with thiserror here
     pub fn create_prompt(&mut self) -> Result<uuid::Uuid> {
         let uuid = Uuid::new_v4();
-        self.prompt
-            .insert(uuid, Arc::new(Mutex::new(BrokerProxy::new())));
+        let proxy = Arc::new(Mutex::new(BrokerProxy::new()));
+        self.prompt.insert(uuid, proxy);
+
         Ok(uuid)
     }
 
