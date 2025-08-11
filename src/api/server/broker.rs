@@ -168,7 +168,7 @@ mod tests {
             let proxy = b.get_prompt(id).unwrap();
             let lock = proxy.lock().await;
             for _ in 0..CHANNEL_SIZE {
-                match lock.pipe.sender.send(Default::default()).await {
+                match lock.pipe.sender.send("hello, world!".into()).await {
                     Err(e) => s2.send(Err(e)).await.unwrap(),
                     _ => {}
                 }
@@ -182,7 +182,9 @@ mod tests {
             let proxy = b.get_prompt(id).unwrap();
             let mut lock = proxy.lock().await;
             for _ in 0..CHANNEL_SIZE {
-                lock.next_message().await;
+                let obj = lock.next_message().await;
+                assert!(obj.is_some());
+                assert_eq!(obj.unwrap(), "hello, world!");
             }
 
             s.send(Ok(())).await.unwrap();
