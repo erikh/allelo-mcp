@@ -195,6 +195,7 @@ pub(crate) async fn prompt(
         if let Some(msg) = prompt.prompt {
             tokio::spawn(async move {
                 loop {
+                    // FIXME: replace this with actual LLM code
                     let mut lock = send.lock().await;
                     lock.send_message(msg.clone()).await.unwrap();
                 }
@@ -202,11 +203,13 @@ pub(crate) async fn prompt(
         }
 
         tokio::spawn(async move {
+            s.send(PromptResponse::Connection(id)).await.unwrap();
+
             loop {
                 let mut lock = proxy.lock().await;
                 tokio::select! {
                     Some(output) = lock.next_message() => {
-                        s.send(output).await.unwrap();
+                        s.send(PromptResponse::PromptResponse(output)).await.unwrap();
                     },
                     else => {
                         if lock.check_timeout() {

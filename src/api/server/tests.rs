@@ -14,6 +14,17 @@ async fn test_sse() {
         .await
         .unwrap();
 
+    let x = r.recv().await.unwrap().unwrap();
+    assert!(matches!(x, Event::Open));
+
+    let x = r.recv().await.unwrap().unwrap();
+    assert!(matches!(x, Event::Message(_)));
+
+    if let Event::Message(m) = x {
+        let obj: PromptResponse = serde_json::from_str(&m.data).unwrap();
+        assert!(matches!(obj, PromptResponse::Connection(_)));
+    }
+
     let mut i = 0;
 
     while let Some(Ok(m)) = r.recv().await {
@@ -23,8 +34,9 @@ async fn test_sse() {
         match m {
             Event::Open => {}
             Event::Message(m) => {
+                let obj: PromptResponse = serde_json::from_str(&m.data).unwrap();
+                assert!(matches!(obj, PromptResponse::PromptResponse(_)));
                 i += 1;
-                eprintln!("{}", m.data);
             }
         }
     }
