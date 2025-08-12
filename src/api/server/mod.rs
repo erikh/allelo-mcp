@@ -187,7 +187,6 @@ pub(crate) async fn prompt(
 
     if let Some(proxy) = lock.get_prompt(id) {
         let (s, r) = channel(CHANNEL_SIZE);
-
         drop(lock);
 
         let send = proxy.clone();
@@ -196,8 +195,15 @@ pub(crate) async fn prompt(
             tokio::spawn(async move {
                 loop {
                     // FIXME: replace this with actual LLM code
-                    let mut lock = send.lock().await;
-                    lock.send_message(msg.clone()).await.unwrap();
+                    tokio::select! {
+                        mut lock = send.lock() => {
+                            tokio::select! {
+                                _ = lock.send_message(msg.clone()) => {}
+                                else => {}
+                            }
+                        }
+                        else => {}
+                    }
                 }
             });
         }
@@ -206,13 +212,21 @@ pub(crate) async fn prompt(
             s.send(PromptResponse::Connection(id)).await.unwrap();
 
             loop {
-                let mut lock = proxy.lock().await;
                 tokio::select! {
-                    Some(output) = lock.next_message() => {
-                        s.send(PromptResponse::PromptResponse(output)).await.unwrap();
-                    },
+                    mut lock = proxy.lock() => {
+                        tokio::select! {
+                            Some(output) = lock.next_message() => {
+                                s.try_send(PromptResponse::PromptResponse(output)).unwrap();
+                            },
+                            else => {
+                                if s.is_closed() || lock.check_timeout() {
+                                    return;
+                                }
+                            }
+                        }
+                    }
                     else => {
-                        if lock.check_timeout() {
+                        if s.is_closed() {
                             return;
                         }
                     }

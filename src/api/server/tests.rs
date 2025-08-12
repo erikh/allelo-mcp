@@ -20,6 +20,48 @@ async fn test_sse() {
     let x = r.recv().await.unwrap().unwrap();
     assert!(matches!(x, Event::Message(_)));
 
+    let mut id: uuid::Uuid = Default::default();
+
+    if let Event::Message(m) = x {
+        let obj: PromptResponse = serde_json::from_str(&m.data).unwrap();
+        assert!(matches!(obj, PromptResponse::Connection(_)));
+        if let PromptResponse::Connection(i) = obj {
+            id = i
+        }
+    }
+
+    let mut i = 0;
+
+    while let Some(Ok(m)) = r.recv().await {
+        if i == 10 {
+            break;
+        }
+
+        match m {
+            Event::Open => {}
+            Event::Message(m) => {
+                let obj: PromptResponse = serde_json::from_str(&m.data).unwrap();
+                eprintln!("{}", m.data);
+                assert!(matches!(obj, PromptResponse::PromptResponse(_)));
+                i += 1;
+            }
+        }
+    }
+
+    let mut r = client
+        .prompt(Prompt {
+            connection_id: Some(id),
+            prompt: None,
+        })
+        .await
+        .unwrap();
+
+    let x = r.recv().await.unwrap().unwrap();
+    assert!(matches!(x, Event::Open));
+
+    let x = r.recv().await.unwrap().unwrap();
+    assert!(matches!(x, Event::Message(_)));
+
     if let Event::Message(m) = x {
         let obj: PromptResponse = serde_json::from_str(&m.data).unwrap();
         assert!(matches!(obj, PromptResponse::Connection(_)));
@@ -31,10 +73,12 @@ async fn test_sse() {
         if i == 10 {
             break;
         }
+
         match m {
             Event::Open => {}
             Event::Message(m) => {
                 let obj: PromptResponse = serde_json::from_str(&m.data).unwrap();
+                eprintln!("{}", m.data);
                 assert!(matches!(obj, PromptResponse::PromptResponse(_)));
                 i += 1;
             }
@@ -42,6 +86,5 @@ async fn test_sse() {
     }
 
     assert_eq!(i, 10);
-
     shutdown_handle(handle);
 }
