@@ -1,4 +1,3 @@
-/*
 use super::*;
 use crate::testutil::{default_api_url, shutdown_handle, start_api_server};
 use reqwest_eventsource::Event;
@@ -10,7 +9,7 @@ async fn test_sse() {
     let mut r = client
         .prompt(Prompt {
             connection_id: Default::default(),
-            prompt: "hello, world".into(),
+            prompt: Some("hello, world".into()),
         })
         .await
         .unwrap();
@@ -34,4 +33,3 @@ async fn test_sse() {
 
     shutdown_handle(handle);
 }
-*/

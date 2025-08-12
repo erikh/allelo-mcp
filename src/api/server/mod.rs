@@ -160,7 +160,7 @@ async fn shutdown_signal(handle: axum_server::Handle) {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Prompt {
     connection_id: Option<uuid::Uuid>,
-    prompt: String,
+    prompt: Option<String>,
 }
 
 // Response enum for prompt SSE events. Ingested by client which proxies to MCP, or directly to
@@ -189,6 +189,17 @@ pub(crate) async fn prompt(
         let (s, r) = channel(CHANNEL_SIZE);
 
         drop(lock);
+
+        let send = proxy.clone();
+
+        if let Some(msg) = prompt.prompt {
+            tokio::spawn(async move {
+                loop {
+                    let mut lock = send.lock().await;
+                    lock.send_message(msg.clone()).await.unwrap();
+                }
+            });
+        }
 
         tokio::spawn(async move {
             loop {
