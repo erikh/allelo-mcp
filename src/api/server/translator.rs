@@ -11,6 +11,7 @@ where
     R: Send + Sync + 'static,
 {
     async fn serve(
+        self,
         mut r: Receiver<T>,
         done: Arc<AtomicBool>,
         mut proxy: BrokerProxy<T, R>,

@@ -28,11 +28,11 @@ pub fn shutdown_handle(handle: axum_server::Handle) {
 }
 
 #[allow(dead_code)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TestConnection<T, R>
 where
-    T: Sync + Send + 'static,
-    R: Sync + Send + 'static,
+    T: Clone + Sync + Send + 'static,
+    R: Clone + Sync + Send + 'static,
 {
     input: Sender<T>,
     done: Arc<AtomicBool>,
@@ -42,20 +42,23 @@ where
 #[allow(dead_code)]
 impl<T, R> TestConnection<T, R>
 where
-    T: Sync + Send + 'static,
-    R: From<T> + Sync + Send + 'static,
+    T: Clone + Sync + Send + 'static,
+    R: Clone + From<T> + Sync + Send + 'static,
 {
     pub fn new(proxy: BrokerProxy<T, R>) -> Self {
         let (s, r) = channel(broker::CHANNEL_SIZE);
 
         let done = Arc::new(AtomicBool::default());
         let done2 = done.clone();
-        tokio::spawn(async move { Self::serve(r, done2, proxy).await.unwrap() });
-        Self {
+        let this = Self {
             input: s,
             done,
             r: Default::default(),
-        }
+        };
+
+        let ret = this.clone();
+        tokio::spawn(async move { this.serve(r, done2, proxy).await.unwrap() });
+        ret
     }
 
     pub fn shutdown(&mut self) {
@@ -66,10 +69,11 @@ where
 #[async_trait::async_trait]
 impl<T, R> Translator<T, R> for TestConnection<T, R>
 where
-    T: Sync + Send + 'static,
-    R: From<T> + Sync + Send + 'static,
+    T: Clone + Sync + Send + 'static,
+    R: Clone + From<T> + Sync + Send + 'static,
 {
     async fn serve(
+        self,
         mut r: Receiver<T>,
         done: Arc<AtomicBool>,
         mut proxy: BrokerProxy<T, R>,
