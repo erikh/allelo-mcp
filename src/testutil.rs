@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::api::server::*;
 use anyhow::Result;
 

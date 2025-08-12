@@ -4,6 +4,7 @@ mod config;
 mod tests;
 pub use self::config::*;
 
+use anyhow::anyhow;
 use axum::{
     extract::{Json, State},
     response::{
@@ -13,7 +14,8 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use futures_util::stream::{self, Stream};
+use broker::{CHANNEL_SIZE, GLOBAL_BROKER};
+use futures_util::stream::Stream;
 use http::{header::*, Method};
 use problem_details::ProblemDetails;
 use serde::{Deserialize, Serialize};
@@ -22,7 +24,8 @@ use std::{
     sync::Arc,
     time::Duration,
 };
-use tokio_stream::StreamExt;
+use tokio::sync::mpsc::channel;
+use tokio_stream::{wrappers::ReceiverStream, StreamExt};
 use tower::ServiceBuilder;
 use tower_http::cors::{Any as CorsAny, CorsLayer};
 use tower_http::trace::{DefaultMakeSpan, DefaultOnFailure, DefaultOnRequest};
@@ -156,7 +159,7 @@ async fn shutdown_signal(handle: axum_server::Handle) {
 // input struct for prompt API
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Prompt {
-    connection_id: uuid::Uuid,
+    connection_id: Option<uuid::Uuid>,
     prompt: String,
 }
 
@@ -173,12 +176,44 @@ pub enum PromptResponse {
 
 pub(crate) async fn prompt(
     State(_state): State<Arc<ServerState>>,
-    Json(_prompt): Json<Prompt>,
+    Json(prompt): Json<Prompt>,
 ) -> Result<Sse<impl Stream<Item = std::result::Result<Event, std::convert::Infallible>>>> {
-    let stream = stream::repeat_with(|| Event::default().data("hi!"))
-        .map(Ok)
-        .throttle(Duration::from_millis(10));
-    Ok(Sse::new(stream).keep_alive(KeepAlive::default()))
+    let mut lock = GLOBAL_BROKER.lock().into_future().await;
+    let id = if let Some(id) = prompt.connection_id {
+        id
+    } else {
+        lock.create_prompt()?
+    };
+
+    if let Some(proxy) = lock.get_prompt(id) {
+        let (s, r) = channel(CHANNEL_SIZE);
+
+        drop(lock);
+
+        tokio::spawn(async move {
+            loop {
+                let mut lock = proxy.lock().await;
+                tokio::select! {
+                    Some(output) = lock.next_message() => {
+                        s.send(output).await.unwrap();
+                    },
+                    else => {
+                        if lock.check_timeout() {
+                            return;
+                        }
+                    }
+                }
+            }
+        });
+
+        let stream = ReceiverStream::new(r)
+            .map(|x| Event::default().data(&serde_json::to_string(&x).unwrap()))
+            .map(Ok)
+            .throttle(Duration::from_millis(10));
+        Ok(Sse::new(stream).keep_alive(KeepAlive::default()))
+    } else {
+        Err(anyhow!("stream closed").into())
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

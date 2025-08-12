@@ -18,40 +18,6 @@ pub(crate) const CHANNEL_SIZE: usize = 1000;
 const TIMEOUT_SECS: u64 = 600;
 
 #[derive(Debug)]
-pub struct BrokerProxy<T, R> {
-    input: BrokerPipe<T>,
-    output: BrokerPipe<R>,
-}
-
-impl<T, R> BrokerProxy<T, R>
-where
-    T: Sync + Send + 'static,
-    R: Sync + Send + 'static,
-{
-    pub fn new() -> Self {
-        Self {
-            input: BrokerPipe::new(),
-            output: BrokerPipe::new(),
-        }
-    }
-
-    pub fn output(&mut self) -> &mut BrokerPipe<R> {
-        &mut self.output
-    }
-
-    pub fn input(&mut self) -> &mut BrokerPipe<T> {
-        &mut self.input
-    }
-
-    pub fn check_timeout(&self) -> bool {
-        std::time::Instant::now() - std::time::Duration::from_secs(TIMEOUT_SECS)
-            > self.output.last_message()
-            || std::time::Instant::now() - std::time::Duration::from_secs(TIMEOUT_SECS)
-                > self.input.last_message()
-    }
-}
-
-#[derive(Debug)]
 pub struct BrokerPipe<T> {
     last_message: Instant,
     sender: Sender<T>,
@@ -88,6 +54,10 @@ where
     pub fn last_message(&self) -> Instant {
         self.last_message.clone()
     }
+
+    pub fn check_timeout(&self) -> bool {
+        std::time::Instant::now() - std::time::Duration::from_secs(TIMEOUT_SECS) > self.last_message
+    }
 }
 
 // NOTE: this is probably not a long-term solution, but it should route requests between the API
@@ -95,15 +65,15 @@ where
 // memory and will likely need to be replaced with a dedicated queue before using in production.
 #[derive(Debug, Clone, Default)]
 pub struct Broker {
-    mcp: HashMap<uuid::Uuid, Arc<Mutex<BrokerProxy<McpRequest, ()>>>>,
-    prompt: HashMap<uuid::Uuid, Arc<Mutex<BrokerProxy<String, ()>>>>,
+    mcp: HashMap<uuid::Uuid, Arc<Mutex<BrokerPipe<McpRequest>>>>,
+    prompt: HashMap<uuid::Uuid, Arc<Mutex<BrokerPipe<String>>>>,
 }
 
 impl Broker {
     // FIXME: replace anyhow with thiserror here
     pub fn create_mcp<T>(&mut self) -> Result<uuid::Uuid> {
         let uuid = Uuid::new_v4();
-        let proxy = Arc::new(Mutex::new(BrokerProxy::new()));
+        let proxy = Arc::new(Mutex::new(BrokerPipe::new()));
         self.mcp.insert(uuid, proxy);
 
         Ok(uuid)
@@ -112,17 +82,17 @@ impl Broker {
     // FIXME: replace anyhow with thiserror here
     pub fn create_prompt(&mut self) -> Result<uuid::Uuid> {
         let uuid = Uuid::new_v4();
-        let proxy = Arc::new(Mutex::new(BrokerProxy::new()));
+        let proxy = Arc::new(Mutex::new(BrokerPipe::new()));
         self.prompt.insert(uuid, proxy);
 
         Ok(uuid)
     }
 
-    pub fn get_mcp(&self, id: uuid::Uuid) -> Option<Arc<Mutex<BrokerProxy<McpRequest, ()>>>> {
+    pub fn get_mcp(&self, id: uuid::Uuid) -> Option<Arc<Mutex<BrokerPipe<McpRequest>>>> {
         self.mcp.get(&id).cloned()
     }
 
-    pub fn get_prompt(&self, id: uuid::Uuid) -> Option<Arc<Mutex<BrokerProxy<String, ()>>>> {
+    pub fn get_prompt(&self, id: uuid::Uuid) -> Option<Arc<Mutex<BrokerPipe<String>>>> {
         self.prompt.get(&id).cloned()
     }
 
@@ -147,8 +117,8 @@ mod tests {
 
         let id = broker.create_prompt().unwrap();
         let proxy = broker.get_prompt(id).unwrap();
-        let mut lock = proxy.lock().await;
-        let start = lock.input().last_message.clone();
+        let lock = proxy.lock().await;
+        let start = lock.last_message.clone();
         drop(lock);
 
         let (s, mut r) = channel(1);
@@ -158,7 +128,7 @@ mod tests {
             for _ in 0..CHANNEL_SIZE {
                 let proxy = b.get_prompt(id).unwrap();
                 let mut lock = proxy.lock().await;
-                match lock.input().send_message(Default::default()).await {
+                match lock.send_message(Default::default()).await {
                     Err(e) => s.send(Err(e)).await.unwrap(),
                     _ => {}
                 }
@@ -172,8 +142,8 @@ mod tests {
         }
 
         let proxy = broker.get_prompt(id).unwrap();
-        let mut lock = proxy.lock().await;
-        assert_ne!(lock.input().last_message, start);
+        let lock = proxy.lock().await;
+        assert_ne!(lock.last_message, start);
     }
 
     #[tokio::test]
@@ -182,8 +152,8 @@ mod tests {
 
         let id = broker.create_prompt().unwrap();
         let proxy = broker.get_prompt(id).unwrap();
-        let mut lock = proxy.lock().await;
-        let start = lock.input().last_message.clone();
+        let lock = proxy.lock().await;
+        let start = lock.last_message.clone();
         drop(lock);
 
         let (s, mut r) = channel(2);
@@ -193,9 +163,9 @@ mod tests {
         let s2 = s.clone();
         tokio::spawn(async move {
             let proxy = b.get_prompt(id).unwrap();
-            let mut lock = proxy.lock().await;
+            let lock = proxy.lock().await;
             for _ in 0..CHANNEL_SIZE {
-                match lock.input().sender.send("hello, world!".into()).await {
+                match lock.sender.send("hello, world!".into()).await {
                     Err(e) => s2.send(Err(anyhow!(e))).await.unwrap(),
                     _ => {}
                 }
@@ -209,7 +179,7 @@ mod tests {
             let proxy = b.get_prompt(id).unwrap();
             let mut lock = proxy.lock().await;
             for _ in 0..CHANNEL_SIZE {
-                match lock.input().next_message().await {
+                match lock.next_message().await {
                     Some(x) => {
                         if x != "hello, world!" {
                             s.send(Err(anyhow!("input and output didn't match")))
@@ -238,7 +208,7 @@ mod tests {
         }
 
         let proxy = broker.get_prompt(id).unwrap();
-        let mut lock = proxy.lock().await;
-        assert_ne!(lock.input().last_message, start);
+        let lock = proxy.lock().await;
+        assert_ne!(lock.last_message, start);
     }
 }
