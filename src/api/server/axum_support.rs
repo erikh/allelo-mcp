@@ -56,3 +56,17 @@ impl FromRequestParts<Arc<ServerState>> for Auth {
         Ok(Self(true))
     }
 }
+
+#[derive(Debug, Clone, Default)]
+pub struct ServiceAuth(pub bool);
+
+impl FromRequestParts<Arc<ServerState>> for ServiceAuth {
+    type Rejection = AppError;
+
+    async fn from_request_parts(
+        _parts: &mut Parts,
+        _state: &Arc<ServerState>,
+    ) -> core::result::Result<Self, Self::Rejection> {
+        Ok(Self(true))
+    }
+}

@@ -1,5 +1,5 @@
 use super::broker::{CHANNEL_SIZE, GLOBAL_BROKER};
-use super::{AppError, Auth, ServerState};
+use super::{AppError, Auth, ServerState, ServiceAuth};
 use anyhow::anyhow;
 use axum::{
     extract::{Json, State},
@@ -131,13 +131,26 @@ pub(crate) async fn prompt(
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Metrics {}
 
-pub(crate) async fn metrics(State(_state): State<Arc<ServerState>>) -> Result<Json<Metrics>> {
+pub(crate) async fn metrics(
+    ServiceAuth(authed): ServiceAuth,
+    State(_state): State<Arc<ServerState>>,
+) -> Result<Json<Metrics>> {
+    if !authed {
+        return Err(anyhow!("unauthenticated").into());
+    }
     Ok(Json::from(Metrics {}))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Status {}
 
-pub(crate) async fn status(State(_state): State<Arc<ServerState>>) -> Result<Json<Status>> {
+pub(crate) async fn status(
+    ServiceAuth(authed): ServiceAuth,
+    State(_state): State<Arc<ServerState>>,
+) -> Result<Json<Status>> {
+    if !authed {
+        return Err(anyhow!("unauthenticated").into());
+    }
+
     Ok(Json::from(Status {}))
 }
