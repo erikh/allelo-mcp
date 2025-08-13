@@ -21,6 +21,14 @@ pub struct McpRequest {
     pub mcp_route_id: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct McpResponse {
+    pub connection_id: String,
+    pub response: String,
+    pub mcp_route: String,
+    pub mcp_route_id: String,
+}
+
 // input struct for prompt API
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Prompt {
@@ -126,6 +134,18 @@ pub(crate) async fn prompt(
     } else {
         Err(anyhow!("stream closed").into())
     }
+}
+
+pub(crate) async fn mcp_response(
+    Auth(authed): Auth,
+    State(_state): State<Arc<ServerState>>,
+    Json(_response): Json<McpResponse>,
+) -> Result<()> {
+    if !authed {
+        return Err(anyhow!("unauthenticated").into());
+    }
+
+    Ok(())
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

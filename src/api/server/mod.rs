@@ -30,6 +30,7 @@ impl Server {
         Ok(Self {
             router: Router::new()
                 .route("/prompt", post(prompt))
+                .route("/mcp/response", post(mcp_response))
                 .route("/search", post(search))
                 .route("/input", put(input))
                 .route("/status", get(status))

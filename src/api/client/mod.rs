@@ -1,6 +1,6 @@
 use crate::api::server::Search;
 
-use super::server::{Input, Metrics, Prompt, SearchResults, Status};
+use super::server::{Input, McpResponse, Metrics, Prompt, SearchResults, Status};
 use anyhow::{anyhow, Result};
 use futures_util::StreamExt;
 use reqwest_eventsource::Event;
@@ -16,6 +16,10 @@ pub type SseResult = Result<UnboundedReceiver<Result<Event>>>;
 impl Client {
     pub fn new(base_url: url::Url) -> Self {
         Self { base_url }
+    }
+
+    pub async fn mcp_response(&self, _input: McpResponse) -> Result<()> {
+        return Err(anyhow!("unimplemented"));
     }
 
     pub async fn search(&self, _input: Search) -> Result<SearchResults> {
