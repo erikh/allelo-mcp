@@ -8,6 +8,37 @@ use std::{
     any::{Any, TypeId},
     sync::Arc,
 };
+use tokio::sync::Mutex;
+
+use super::broker::BrokerPipe;
+
+#[async_trait::async_trait]
+pub trait PromptClient {
+    async fn prompt(&self, id: uuid::Uuid, proxy: Arc<Mutex<BrokerPipe<String>>>, prompt: String);
+}
+
+pub struct PromptRepeaterClient;
+
+#[async_trait::async_trait]
+impl PromptClient for PromptRepeaterClient {
+    async fn prompt(&self, id: uuid::Uuid, send: Arc<Mutex<BrokerPipe<String>>>, msg: String) {
+        loop {
+            tokio::select! {
+                mut lock = send.lock() => {
+                    tracing::debug!("send lock acquired for: {}", id);
+                    tokio::select! {
+                        _ = lock.send_message(msg.clone()) => {}
+                _ = tokio::time::sleep(std::time::Duration::from_millis(100)) => {
+                },
+                        else => {}
+                    }
+                }
+                else => {}
+            }
+            tracing::debug!("freeing send lock for: {}", id);
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct ServerState {}
