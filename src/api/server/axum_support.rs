@@ -2,6 +2,9 @@ use axum::response::{IntoResponse, Response};
 use problem_details::ProblemDetails;
 use std::any::{Any, TypeId};
 
+#[derive(Debug, Clone)]
+pub struct ServerState {}
+
 #[derive(Debug, Clone, Default)]
 pub struct AppError(pub ProblemDetails);
 
@@ -32,6 +35,3 @@ impl IntoResponse for AppError {
         self.0.into_response()
     }
 }
-
-#[derive(Debug, Clone)]
-pub struct ServerState {}
