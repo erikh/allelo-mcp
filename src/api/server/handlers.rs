@@ -1,5 +1,5 @@
 use super::broker::{CHANNEL_SIZE, GLOBAL_BROKER};
-use super::{AppError, ServerState};
+use super::{AppError, Auth, ServerState};
 use anyhow::anyhow;
 use axum::{
     extract::{Json, State},
@@ -40,9 +40,14 @@ pub enum PromptResponse {
 }
 
 pub(crate) async fn prompt(
+    Auth(authed): Auth,
     State(_state): State<Arc<ServerState>>,
     Json(prompt): Json<Prompt>,
 ) -> Result<Sse<impl Stream<Item = std::result::Result<Event, std::convert::Infallible>>>> {
+    if !authed {
+        return Err(anyhow!("unauthenticated").into());
+    }
+
     let mut lock = GLOBAL_BROKER.lock().into_future().await;
     let id = if let Some(id) = prompt.connection_id {
         tracing::info!("resuming prompt: {}", id);
