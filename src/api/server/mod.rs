@@ -39,7 +39,7 @@ pub struct McpRequest {
     mcp_route_id: String,
 }
 
-pub(crate) type Result<T> = core::result::Result<T, AppError>;
+type Result<T> = core::result::Result<T, AppError>;
 
 #[derive(Debug, Clone, Default)]
 pub struct AppError(pub ProblemDetails);
