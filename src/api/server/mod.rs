@@ -1,58 +1,23 @@
+mod axum_support;
 pub(crate) mod broker;
 mod config;
 mod handlers;
 #[cfg(test)]
 mod tests;
 pub use self::config::*;
+pub use axum_support::*;
 pub use handlers::*;
 
 use axum::{
-    response::{IntoResponse, Response},
     routing::{get, post},
     Router,
 };
 use http::{header::*, Method};
-use problem_details::ProblemDetails;
-use std::any::{Any, TypeId};
 use std::sync::Arc;
 use tower::ServiceBuilder;
 use tower_http::cors::{Any as CorsAny, CorsLayer};
 use tower_http::trace::{DefaultMakeSpan, DefaultOnFailure, DefaultOnRequest};
 use tracing::Level;
-
-#[derive(Debug, Clone, Default)]
-pub struct AppError(pub ProblemDetails);
-
-impl<E> From<E> for AppError
-where
-    E: Into<anyhow::Error> + Any,
-{
-    fn from(value: E) -> Self {
-        // hack around type specialization
-        if TypeId::of::<E>() == TypeId::of::<ProblemDetails>() {
-            Self(
-                <(dyn Any + 'static)>::downcast_ref::<ProblemDetails>(&value)
-                    .unwrap()
-                    .clone(),
-            )
-        } else {
-            Self(
-                ProblemDetails::new()
-                    .with_detail(value.into().to_string())
-                    .with_title("Uncategorized Error"),
-            )
-        }
-    }
-}
-
-impl IntoResponse for AppError {
-    fn into_response(self) -> Response {
-        self.0.into_response()
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct ServerState {}
 
 #[derive(Debug, Clone)]
 pub struct Server {
