@@ -9,7 +9,7 @@ pub use axum_support::*;
 pub use handlers::*;
 
 use axum::{
-    routing::{get, post},
+    routing::{get, post, put},
     Router,
 };
 use http::{header::*, Method};
@@ -30,6 +30,8 @@ impl Server {
         Ok(Self {
             router: Router::new()
                 .route("/prompt", post(prompt))
+                .route("/search", post(search))
+                .route("/input", put(input))
                 .route("/status", get(status))
                 .route("/metrics", get(metrics))
                 .with_state(Arc::new(ServerState {}))

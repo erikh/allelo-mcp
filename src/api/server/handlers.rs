@@ -128,6 +128,45 @@ pub(crate) async fn prompt(
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct Search {
+    input: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct SearchResults {
+    results: Vec<String>,
+}
+
+pub(crate) async fn search(
+    Auth(authed): Auth,
+    State(_state): State<Arc<ServerState>>,
+    Json(_search): Json<Search>,
+) -> Result<Json<SearchResults>> {
+    if !authed {
+        return Err(anyhow!("unauthenticated").into());
+    }
+
+    return Ok(Default::default());
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct Input {
+    input: String,
+}
+
+pub(crate) async fn input(
+    Auth(authed): Auth,
+    State(_state): State<Arc<ServerState>>,
+    Json(_input): Json<Input>,
+) -> Result<Json<bool>> {
+    if !authed {
+        return Err(anyhow!("unauthenticated").into());
+    }
+
+    return Ok(axum::Json(true));
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Metrics {}
 
