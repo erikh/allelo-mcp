@@ -108,8 +108,14 @@ pub(crate) async fn prompt(
                         _ = tokio::time::sleep(std::time::Duration::from_millis(100)) => {
                         },
                             else => {
-                                if s.is_closed() || lock.check_timeout() {
+                                let timeout = lock.check_timeout();
+                                if s.is_closed() || timeout {
                                     tracing::debug!("freeing recv lock for: {}", id);
+                                    if timeout {
+                                        let mut global = GLOBAL_BROKER.lock().into_future().await;
+                                        global.expire_prompt(id);
+                                        drop(global);
+                                    }
                                     return;
                                 }
                             }

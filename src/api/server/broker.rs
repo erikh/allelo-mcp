@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 use super::McpRequest;
 use anyhow::Result;
 use std::{
@@ -65,12 +64,14 @@ where
 // memory and will likely need to be replaced with a dedicated queue before using in production.
 #[derive(Debug, Clone, Default)]
 pub struct Broker {
+    #[allow(dead_code)]
     mcp: HashMap<uuid::Uuid, Arc<Mutex<BrokerPipe<McpRequest>>>>,
     prompt: HashMap<uuid::Uuid, Arc<Mutex<BrokerPipe<String>>>>,
 }
 
 impl Broker {
     // FIXME: replace anyhow with thiserror here
+    #[allow(dead_code)]
     pub fn create_mcp<T>(&mut self) -> Result<uuid::Uuid> {
         let uuid = Uuid::new_v4();
         let proxy = Arc::new(Mutex::new(BrokerPipe::new()));
@@ -88,6 +89,7 @@ impl Broker {
         Ok(uuid)
     }
 
+    #[allow(dead_code)]
     pub fn get_mcp(&self, id: uuid::Uuid) -> Option<Arc<Mutex<BrokerPipe<McpRequest>>>> {
         self.mcp.get(&id).cloned()
     }
@@ -96,6 +98,7 @@ impl Broker {
         self.prompt.get(&id).cloned()
     }
 
+    #[allow(dead_code)]
     pub fn expire_mcp(&mut self, id: uuid::Uuid) {
         self.mcp.remove(&id);
     }
