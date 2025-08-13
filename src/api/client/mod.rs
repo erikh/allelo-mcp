@@ -1,5 +1,7 @@
-use super::server::Prompt;
-use anyhow::Result;
+use crate::api::server::Search;
+
+use super::server::{Input, Metrics, Prompt, SearchResults, Status};
+use anyhow::{anyhow, Result};
 use futures_util::StreamExt;
 use reqwest_eventsource::Event;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver};
@@ -14,6 +16,22 @@ pub type SseResult = Result<UnboundedReceiver<Result<Event>>>;
 impl Client {
     pub fn new(base_url: url::Url) -> Self {
         Self { base_url }
+    }
+
+    pub async fn search(&self, _input: Search) -> Result<SearchResults> {
+        return Err(anyhow!("unimplemented"));
+    }
+
+    pub async fn input(&self, _input: Input) -> Result<bool> {
+        return Err(anyhow!("unimplemented"));
+    }
+
+    pub async fn metrics(&self) -> Result<Metrics> {
+        return Err(anyhow!("unimplemented"));
+    }
+
+    pub async fn status(&self) -> Result<Status> {
+        return Err(anyhow!("unimplemented"));
     }
 
     pub async fn prompt(&self, input: Prompt) -> SseResult {
