@@ -180,12 +180,16 @@ pub(crate) async fn prompt(
 ) -> Result<Sse<impl Stream<Item = std::result::Result<Event, std::convert::Infallible>>>> {
     let mut lock = GLOBAL_BROKER.lock().into_future().await;
     let id = if let Some(id) = prompt.connection_id {
+        tracing::info!("resuming prompt: {}", id);
         id
     } else {
-        lock.create_prompt()?
+        let id = lock.create_prompt()?;
+        tracing::info!("created new prompt: {}", id);
+        id
     };
 
     if let Some(proxy) = lock.get_prompt(id) {
+        tracing::debug!("retreived prompt: {}", id);
         let (s, r) = channel(CHANNEL_SIZE);
         drop(lock);
 
@@ -197,13 +201,17 @@ pub(crate) async fn prompt(
                     // FIXME: replace this with actual LLM code
                     tokio::select! {
                         mut lock = send.lock() => {
+                            tracing::debug!("send lock acquired for: {}", id);
                             tokio::select! {
                                 _ = lock.send_message(msg.clone()) => {}
+                        _ = tokio::time::sleep(std::time::Duration::from_millis(100)) => {
+                        },
                                 else => {}
                             }
                         }
                         else => {}
                     }
+                    tracing::debug!("freeing send lock for: {}", id);
                 }
             });
         }
@@ -214,12 +222,16 @@ pub(crate) async fn prompt(
             loop {
                 tokio::select! {
                     mut lock = proxy.lock() => {
+                        tracing::debug!("recv lock acquired for: {}", id);
                         tokio::select! {
                             Some(output) = lock.next_message() => {
-                                s.try_send(PromptResponse::PromptResponse(output)).unwrap();
+                                s.send(PromptResponse::PromptResponse(output)).await.unwrap();
                             },
+                        _ = tokio::time::sleep(std::time::Duration::from_millis(100)) => {
+                        },
                             else => {
                                 if s.is_closed() || lock.check_timeout() {
+                                    tracing::debug!("freeing recv lock for: {}", id);
                                     return;
                                 }
                             }
@@ -227,10 +239,12 @@ pub(crate) async fn prompt(
                     }
                     else => {
                         if s.is_closed() {
+                            tracing::debug!("freeing recv lock for: {}", id);
                             return;
                         }
                     }
                 }
+                tracing::debug!("freeing recv lock for: {}", id);
             }
         });
 

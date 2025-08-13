@@ -48,6 +48,8 @@ async fn test_sse() {
         }
     }
 
+    r.close();
+
     let mut r = client
         .prompt(Prompt {
             connection_id: Some(id),
