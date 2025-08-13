@@ -1,6 +1,10 @@
+use crate::api::server::{PromptClient, PromptRepeaterClient};
+
 use super::broker::{CHANNEL_SIZE, GLOBAL_BROKER};
 use super::{AppError, Auth, ServerState, ServiceAuth};
 use anyhow::anyhow;
+#[cfg(test)]
+use axum::extract::Query;
 use axum::{
     extract::{Json, State},
     response::sse::{Event, KeepAlive, Sse},
@@ -47,9 +51,23 @@ pub enum PromptResponse {
     McpRequest(McpRequest),
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PromptType {
+    query_type: QueryType,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum QueryType {
+    #[serde(rename = "repeat_prompt")]
+    RepeatPrompt,
+}
+
 pub(crate) async fn prompt(
     Auth(authed): Auth,
     State(_state): State<Arc<ServerState>>,
+    #[cfg(test)]
+    #[allow(unused)]
+    Query(params): Query<PromptType>,
     Json(prompt): Json<Prompt>,
 ) -> Result<Sse<impl Stream<Item = std::result::Result<Event, std::convert::Infallible>>>> {
     if !authed {
@@ -74,24 +92,21 @@ pub(crate) async fn prompt(
         let send = proxy.clone();
 
         if let Some(msg) = prompt.prompt {
-            tokio::spawn(async move {
-                loop {
-                    // FIXME: replace this with actual LLM code
-                    tokio::select! {
-                        mut lock = send.lock() => {
-                            tracing::debug!("send lock acquired for: {}", id);
-                            tokio::select! {
-                                _ = lock.send_message(msg.clone()) => {}
-                        _ = tokio::time::sleep(std::time::Duration::from_millis(100)) => {
-                        },
-                                else => {}
-                            }
-                        }
-                        else => {}
+            #[cfg(test)]
+            {
+                match params.query_type {
+                    QueryType::RepeatPrompt => {
+                        let prc = &PromptRepeaterClient;
+                        tokio::spawn(prc.prompt(id, send, msg));
                     }
-                    tracing::debug!("freeing send lock for: {}", id);
                 }
-            });
+            }
+
+            #[cfg(not(test))]
+            {
+                let prc = &PromptRepeaterClient;
+                tokio::spawn(prc.prompt(id, send, msg));
+            }
         }
 
         tokio::spawn(async move {

@@ -39,7 +39,8 @@ impl Client {
     }
 
     pub async fn prompt(&self, input: Prompt) -> SseResult {
-        let url = self.base_url.join("/prompt")?;
+        let mut url = self.base_url.join("/prompt")?;
+        url.set_query(Some("query_type=repeat_prompt"));
         let mut es = reqwest_eventsource::EventSource::post(
             url.to_string(),
             "application/json",
