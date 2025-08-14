@@ -64,27 +64,18 @@ where
 // memory and will likely need to be replaced with a dedicated queue before using in production.
 #[derive(Debug, Clone, Default)]
 pub struct Broker {
-    #[allow(dead_code)]
     mcp: HashMap<uuid::Uuid, Arc<Mutex<BrokerPipe<McpRequest>>>>,
     prompt: HashMap<uuid::Uuid, Arc<Mutex<BrokerPipe<String>>>>,
 }
 
 impl Broker {
     // FIXME: replace anyhow with thiserror here
-    #[allow(dead_code)]
-    pub fn create_mcp<T>(&mut self) -> Result<uuid::Uuid> {
+    pub fn create(&mut self) -> Result<uuid::Uuid> {
         let uuid = Uuid::new_v4();
-        let proxy = Arc::new(Mutex::new(BrokerPipe::new()));
-        self.mcp.insert(uuid, proxy);
-
-        Ok(uuid)
-    }
-
-    // FIXME: replace anyhow with thiserror here
-    pub fn create_prompt(&mut self) -> Result<uuid::Uuid> {
-        let uuid = Uuid::new_v4();
-        let proxy = Arc::new(Mutex::new(BrokerPipe::new()));
-        self.prompt.insert(uuid, proxy);
+        let prompt_proxy = Arc::new(Mutex::new(BrokerPipe::new()));
+        let mcp_proxy = Arc::new(Mutex::new(BrokerPipe::new()));
+        self.prompt.insert(uuid, prompt_proxy);
+        self.mcp.insert(uuid, mcp_proxy);
 
         Ok(uuid)
     }
@@ -98,13 +89,9 @@ impl Broker {
         self.prompt.get(&id).cloned()
     }
 
-    #[allow(dead_code)]
-    pub fn expire_mcp(&mut self, id: uuid::Uuid) {
-        self.mcp.remove(&id);
-    }
-
-    pub fn expire_prompt(&mut self, id: uuid::Uuid) {
+    pub fn expire(&mut self, id: uuid::Uuid) {
         self.prompt.remove(&id);
+        self.mcp.remove(&id);
     }
 }
 
@@ -118,7 +105,7 @@ mod tests {
     async fn test_broker_modify_last_message_on_send() {
         let mut broker = Broker::default();
 
-        let id = broker.create_prompt().unwrap();
+        let id = broker.create().unwrap();
         let proxy = broker.get_prompt(id).unwrap();
         let lock = proxy.lock().await;
         let start = lock.last_message.clone();
@@ -153,7 +140,7 @@ mod tests {
     async fn test_broker_modify_last_message_on_recv() {
         let mut broker = Broker::default();
 
-        let id = broker.create_prompt().unwrap();
+        let id = broker.create().unwrap();
         let proxy = broker.get_prompt(id).unwrap();
         let lock = proxy.lock().await;
         let start = lock.last_message.clone();

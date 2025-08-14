@@ -79,7 +79,7 @@ pub(crate) async fn prompt(
         tracing::info!("resuming prompt: {}", id);
         id
     } else {
-        let id = lock.create_prompt()?;
+        let id = lock.create()?;
         tracing::info!("created new prompt: {}", id);
         id
     };
@@ -128,7 +128,7 @@ pub(crate) async fn prompt(
                                     tracing::debug!("freeing recv lock for: {}", id);
                                     if timeout {
                                         let mut global = GLOBAL_BROKER.lock().into_future().await;
-                                        global.expire_prompt(id);
+                                        global.expire(id);
                                         drop(global);
                                     }
                                     return;
