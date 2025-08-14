@@ -28,12 +28,9 @@ impl PromptClient for PromptRepeaterClient {
                     tracing::debug!("send lock acquired for: {}", id);
                     tokio::select! {
                         _ = lock.send_message(msg.clone()) => {}
-                _ = tokio::time::sleep(std::time::Duration::from_millis(100)) => {
-                },
-                        else => {}
                     }
                 }
-                else => {}
+                _ = tokio::time::sleep(std::time::Duration::from_millis(100)) => { },
             }
             tracing::debug!("freeing send lock for: {}", id);
         }

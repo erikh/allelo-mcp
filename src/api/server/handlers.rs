@@ -84,74 +84,83 @@ pub(crate) async fn prompt(
         id
     };
 
-    if let Some(proxy) = lock.get_prompt(id) {
-        tracing::debug!("retreived prompt: {}", id);
-        let (s, r) = channel(CHANNEL_SIZE);
-        drop(lock);
+    if let Some(prompt_proxy) = lock.get_prompt(id) {
+        if let Some(mcp_proxy) = lock.get_mcp(id) {
+            tracing::debug!("retreived prompt: {}", id);
+            let (s, r) = channel(CHANNEL_SIZE);
+            drop(lock);
 
-        let send = proxy.clone();
+            let send = prompt_proxy.clone();
 
-        if let Some(msg) = prompt.prompt {
-            #[cfg(test)]
-            {
-                match params.query_type {
-                    QueryType::RepeatPrompt => {
-                        let prc = &PromptRepeaterClient;
-                        tokio::spawn(prc.prompt(id, send, msg));
+            if let Some(msg) = prompt.prompt {
+                #[cfg(test)]
+                {
+                    match params.query_type {
+                        QueryType::RepeatPrompt => {
+                            let prc = &PromptRepeaterClient;
+                            tokio::spawn(prc.prompt(id, send, msg));
+                        }
                     }
+                }
+
+                #[cfg(not(test))]
+                {
+                    let prc = &PromptRepeaterClient;
+                    tokio::spawn(prc.prompt(id, send, msg));
                 }
             }
 
-            #[cfg(not(test))]
-            {
-                let prc = &PromptRepeaterClient;
-                tokio::spawn(prc.prompt(id, send, msg));
-            }
-        }
+            tokio::spawn(async move {
+                s.send(PromptResponse::Connection(id)).await.unwrap();
 
-        tokio::spawn(async move {
-            s.send(PromptResponse::Connection(id)).await.unwrap();
+                loop {
+                    if s.is_closed() {
+                        return;
+                    }
 
-            loop {
-                tokio::select! {
-                    mut lock = proxy.lock() => {
-                        tracing::debug!("recv lock acquired for: {}", id);
-                        tokio::select! {
-                            Some(output) = lock.next_message() => {
-                                s.send(PromptResponse::PromptResponse(output)).await.unwrap();
-                            },
-                        _ = tokio::time::sleep(std::time::Duration::from_millis(100)) => {
+                    let mut prompt_lock = prompt_proxy.lock().await;
+                    if prompt_lock.check_timeout() {
+                        let mut global = GLOBAL_BROKER.lock().into_future().await;
+                        global.expire(id);
+                        drop(global);
+                        tracing::debug!("prompt proxy expired: {}", id);
+                        return;
+                    }
+
+                    let mut mcp_lock = mcp_proxy.lock().await;
+                    if mcp_lock.check_timeout() {
+                        let mut global = GLOBAL_BROKER.lock().into_future().await;
+                        global.expire(id);
+                        drop(global);
+                        tracing::debug!("mcp proxy expired: {}", id);
+                        return;
+                    }
+
+                    tracing::debug!("recv lock acquired for: {}", id);
+
+                    tokio::select! {
+                        Some(output) = mcp_lock.next_message() => {
+                            let _ = s.send(PromptResponse::McpRequest(output)).await;
                         },
-                            else => {
-                                let timeout = lock.check_timeout();
-                                if s.is_closed() || timeout {
-                                    tracing::debug!("freeing recv lock for: {}", id);
-                                    if timeout {
-                                        let mut global = GLOBAL_BROKER.lock().into_future().await;
-                                        global.expire(id);
-                                        drop(global);
-                                    }
-                                    return;
-                                }
-                            }
+                        Some(output) = prompt_lock.next_message() => {
+                            let _ = s.send(PromptResponse::PromptResponse(output)).await;
                         }
+                        _ = tokio::time::sleep(std::time::Duration::from_millis(100)) => {}
                     }
-                    else => {
-                        if s.is_closed() {
-                            tracing::debug!("freeing recv lock for: {}", id);
-                            return;
-                        }
-                    }
-                }
-                tracing::debug!("freeing recv lock for: {}", id);
-            }
-        });
 
-        let stream = ReceiverStream::new(r)
-            .map(|x| Event::default().data(&serde_json::to_string(&x).unwrap()))
-            .map(Ok)
-            .throttle(Duration::from_millis(10));
-        Ok(Sse::new(stream).keep_alive(KeepAlive::default()))
+                    tracing::debug!("freeing prompt recv lock for: {}", id);
+                }
+            });
+
+            let stream = ReceiverStream::new(r)
+                .map(|x| Event::default().data(&serde_json::to_string(&x).unwrap()))
+                .map(Ok)
+                .throttle(Duration::from_millis(10));
+            Ok(Sse::new(stream).keep_alive(KeepAlive::default()))
+        } else {
+            lock.expire(id);
+            return Err(anyhow!("stream closed").into());
+        }
     } else {
         Err(anyhow!("stream closed").into())
     }
