@@ -80,7 +80,6 @@ impl Broker {
         Ok(uuid)
     }
 
-    #[allow(dead_code)]
     pub fn get_mcp(&self, id: uuid::Uuid) -> Option<Arc<Mutex<BrokerPipe<McpRequest>>>> {
         self.mcp.get(&id).cloned()
     }
