@@ -86,7 +86,6 @@ async fn shutdown_signal(handle: axum_server::Handle) {
             .expect("failed to install CTRL+C signal handler");
     };
 
-    #[cfg(unix)]
     let terminate = async {
         tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
             .expect("failed to install signal handler")
