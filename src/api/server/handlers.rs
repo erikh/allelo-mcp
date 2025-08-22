@@ -1,3 +1,4 @@
+use crate::api::server::broker::{McpPipe, PromptPipe};
 use crate::api::server::{PromptClient, PromptRepeaterClient};
 
 use super::broker::{CHANNEL_SIZE, GLOBAL_BROKER};
@@ -62,6 +63,36 @@ pub enum QueryType {
     RepeatPrompt,
 }
 
+#[derive(Debug, Clone)]
+struct PromptControl {
+    id: uuid::Uuid,
+    prompt: PromptPipe,
+    mcp: McpPipe,
+}
+
+async fn get_prompt(id: Option<uuid::Uuid>) -> Result<PromptControl> {
+    let mut lock = GLOBAL_BROKER.lock().into_future().await;
+    let id = if let Some(id) = id {
+        tracing::info!("resuming prompt: {}", id);
+        id
+    } else {
+        let id = lock.create()?;
+        tracing::info!("created new prompt: {}", id);
+        id
+    };
+
+    if let Some(prompt) = lock.get_prompt(id) {
+        if let Some(mcp) = lock.get_mcp(id) {
+            Ok(PromptControl { id, prompt, mcp })
+        } else {
+            Err(anyhow!("stream closed").into())
+        }
+    } else {
+        lock.expire(id);
+        Err(anyhow!("stream closed").into())
+    }
+}
+
 pub(crate) async fn prompt(
     Auth(authed): Auth,
     State(_state): State<Arc<ServerState>>,
@@ -74,96 +105,80 @@ pub(crate) async fn prompt(
         return Err(anyhow!("unauthenticated").into());
     }
 
-    let mut lock = GLOBAL_BROKER.lock().into_future().await;
-    let id = if let Some(id) = prompt.connection_id {
-        tracing::info!("resuming prompt: {}", id);
-        id
-    } else {
-        let id = lock.create()?;
-        tracing::info!("created new prompt: {}", id);
-        id
-    };
+    let control = get_prompt(prompt.connection_id).await?;
 
-    if let Some(prompt_proxy) = lock.get_prompt(id) {
-        if let Some(mcp_proxy) = lock.get_mcp(id) {
-            tracing::debug!("retreived prompt: {}", id);
-            let (s, r) = channel(CHANNEL_SIZE);
-            drop(lock);
+    tracing::debug!("retreived prompt: {}", control.id);
+    let (s, r) = channel(CHANNEL_SIZE);
 
-            let send = prompt_proxy.clone();
+    let send = control.prompt.clone();
 
-            if let Some(msg) = prompt.prompt {
-                #[cfg(test)]
-                {
-                    match params.query_type {
-                        QueryType::RepeatPrompt => {
-                            let prc = &PromptRepeaterClient;
-                            tokio::spawn(prc.prompt(id, send, msg));
-                        }
-                    }
-                }
-
-                #[cfg(not(test))]
-                {
+    if let Some(msg) = prompt.prompt {
+        #[cfg(test)]
+        {
+            match params.query_type {
+                QueryType::RepeatPrompt => {
                     let prc = &PromptRepeaterClient;
-                    tokio::spawn(prc.prompt(id, send, msg));
+                    tokio::spawn(prc.prompt(control.id, send, msg));
                 }
             }
-
-            tokio::spawn(async move {
-                s.send(PromptResponse::Connection(id)).await.unwrap();
-
-                loop {
-                    if s.is_closed() {
-                        return;
-                    }
-
-                    let mut prompt_lock = prompt_proxy.lock().await;
-                    if prompt_lock.check_timeout() {
-                        let mut global = GLOBAL_BROKER.lock().into_future().await;
-                        global.expire(id);
-                        drop(global);
-                        tracing::debug!("prompt proxy expired: {}", id);
-                        return;
-                    }
-
-                    let mut mcp_lock = mcp_proxy.lock().await;
-                    if mcp_lock.check_timeout() {
-                        let mut global = GLOBAL_BROKER.lock().into_future().await;
-                        global.expire(id);
-                        drop(global);
-                        tracing::debug!("mcp proxy expired: {}", id);
-                        return;
-                    }
-
-                    tracing::debug!("recv lock acquired for: {}", id);
-
-                    tokio::select! {
-                        Some(output) = mcp_lock.next_message() => {
-                            let _ = s.send(PromptResponse::McpRequest(output)).await;
-                        },
-                        Some(output) = prompt_lock.next_message() => {
-                            let _ = s.send(PromptResponse::PromptResponse(output)).await;
-                        }
-                        _ = tokio::time::sleep(std::time::Duration::from_millis(100)) => {}
-                    }
-
-                    tracing::debug!("freeing prompt recv lock for: {}", id);
-                }
-            });
-
-            let stream = ReceiverStream::new(r)
-                .map(|x| Event::default().data(&serde_json::to_string(&x).unwrap()))
-                .map(Ok)
-                .throttle(Duration::from_millis(10));
-            Ok(Sse::new(stream).keep_alive(KeepAlive::default()))
-        } else {
-            lock.expire(id);
-            return Err(anyhow!("stream closed").into());
         }
-    } else {
-        Err(anyhow!("stream closed").into())
+
+        #[cfg(not(test))]
+        {
+            let prc = &PromptRepeaterClient;
+            tokio::spawn(prc.prompt(control.id, send, msg));
+        }
     }
+
+    tokio::spawn(async move {
+        s.send(PromptResponse::Connection(control.id))
+            .await
+            .unwrap();
+
+        loop {
+            if s.is_closed() {
+                return;
+            }
+
+            let mut prompt_lock = control.prompt.lock().await;
+            if prompt_lock.check_timeout() {
+                let mut global = GLOBAL_BROKER.lock().into_future().await;
+                global.expire(control.id);
+                drop(global);
+                tracing::debug!("prompt proxy expired: {}", control.id);
+                return;
+            }
+
+            let mut mcp_lock = control.mcp.lock().await;
+            if mcp_lock.check_timeout() {
+                let mut global = GLOBAL_BROKER.lock().into_future().await;
+                global.expire(control.id);
+                drop(global);
+                tracing::debug!("mcp proxy expired: {}", control.id);
+                return;
+            }
+
+            tracing::debug!("recv lock acquired for: {}", control.id);
+
+            tokio::select! {
+                Some(output) = mcp_lock.next_message() => {
+                    let _ = s.send(PromptResponse::McpRequest(output)).await;
+                },
+                Some(output) = prompt_lock.next_message() => {
+                    let _ = s.send(PromptResponse::PromptResponse(output)).await;
+                }
+                _ = tokio::time::sleep(std::time::Duration::from_millis(100)) => {}
+            }
+
+            tracing::debug!("freeing prompt recv lock for: {}", control.id);
+        }
+    });
+
+    let stream = ReceiverStream::new(r)
+        .map(|x| Event::default().data(&serde_json::to_string(&x).unwrap()))
+        .map(Ok)
+        .throttle(Duration::from_millis(10));
+    Ok(Sse::new(stream).keep_alive(KeepAlive::default()))
 }
 
 pub(crate) async fn mcp_response(

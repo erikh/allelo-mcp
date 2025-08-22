@@ -68,6 +68,9 @@ pub struct Broker {
     prompt: HashMap<uuid::Uuid, Arc<Mutex<BrokerPipe<String>>>>,
 }
 
+pub(crate) type PromptPipe = Arc<Mutex<BrokerPipe<String>>>;
+pub(crate) type McpPipe = Arc<Mutex<BrokerPipe<McpRequest>>>;
+
 impl Broker {
     // FIXME: replace anyhow with thiserror here
     pub fn create(&mut self) -> Result<uuid::Uuid> {
@@ -80,11 +83,11 @@ impl Broker {
         Ok(uuid)
     }
 
-    pub fn get_mcp(&self, id: uuid::Uuid) -> Option<Arc<Mutex<BrokerPipe<McpRequest>>>> {
+    pub fn get_mcp(&self, id: uuid::Uuid) -> Option<McpPipe> {
         self.mcp.get(&id).cloned()
     }
 
-    pub fn get_prompt(&self, id: uuid::Uuid) -> Option<Arc<Mutex<BrokerPipe<String>>>> {
+    pub fn get_prompt(&self, id: uuid::Uuid) -> Option<PromptPipe> {
         self.prompt.get(&id).cloned()
     }
 
