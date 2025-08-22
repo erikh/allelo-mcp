@@ -7,7 +7,7 @@ edition = "2024"
 rmcp = { version = "*", features = ["server", "transport-io", "transport-sse-server", "server"] }
 tokio = { version = "1", features = [ "full" ] }
 thiserror = "*"
-tracing = "*"
+tracing = { version = "*", features = [ "log-always" ] }
 tracing-subscriber = "*"
 anyhow = "*"
 axum = { version = "*", features = [ "tokio", "http1", "http2", "macros" ] }
@@ -27,3 +27,4 @@ reqwest = "*"
 url = "*"
 eventsource-stream = "*"
 async-trait = "*"
+llm = { version = "*", features = [ "logging" ] }
