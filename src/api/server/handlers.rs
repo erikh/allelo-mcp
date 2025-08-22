@@ -183,7 +183,6 @@ pub(crate) async fn prompt(
     }
 
     let r = prompt_multiplex(control).await;
-
     let stream = ReceiverStream::new(r)
         .map(|x| Event::default().data(&serde_json::to_string(&x).unwrap()))
         .map(Ok)
