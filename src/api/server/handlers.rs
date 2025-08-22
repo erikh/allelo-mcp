@@ -1,10 +1,9 @@
 use crate::api::server::broker::{McpPipe, PromptPipe};
-use crate::api::server::{PromptClient, PromptRepeaterClient};
+use crate::api::server::{CloneableBrokerPipe, PromptClient, PromptRepeaterClient};
 
 use super::broker::{CHANNEL_SIZE, GLOBAL_BROKER};
 use super::{AppError, Auth, ServerState, ServiceAuth};
 use anyhow::anyhow;
-#[cfg(test)]
 use axum::extract::Query;
 use axum::{
     extract::{Json, State},
@@ -13,7 +12,7 @@ use axum::{
 use futures_util::stream::Stream;
 use serde::{Deserialize, Serialize};
 use std::{sync::Arc, time::Duration};
-use tokio::sync::mpsc::channel;
+use tokio::sync::mpsc::{channel, Receiver};
 use tokio_stream::{wrappers::ReceiverStream, StreamExt};
 
 type Result<T> = core::result::Result<T, AppError>;
@@ -93,42 +92,30 @@ async fn get_prompt(id: Option<uuid::Uuid>) -> Result<PromptControl> {
     }
 }
 
-pub(crate) async fn prompt(
-    Auth(authed): Auth,
-    State(_state): State<Arc<ServerState>>,
+async fn prompt_client(
+    #[allow(unused)] query_type: QueryType,
+    id: uuid::Uuid,
+    send: CloneableBrokerPipe,
+    msg: String,
+) {
     #[cfg(test)]
-    #[allow(unused)]
-    Query(params): Query<PromptType>,
-    Json(prompt): Json<Prompt>,
-) -> Result<Sse<impl Stream<Item = std::result::Result<Event, std::convert::Infallible>>>> {
-    if !authed {
-        return Err(anyhow!("unauthenticated").into());
-    }
-
-    let control = get_prompt(prompt.connection_id).await?;
-
-    tracing::debug!("retreived prompt: {}", control.id);
-    let (s, r) = channel(CHANNEL_SIZE);
-
-    let send = control.prompt.clone();
-
-    if let Some(msg) = prompt.prompt {
-        #[cfg(test)]
-        {
-            match params.query_type {
-                QueryType::RepeatPrompt => {
-                    let prc = &PromptRepeaterClient;
-                    tokio::spawn(prc.prompt(control.id, send, msg));
-                }
-            }
-        }
-
-        #[cfg(not(test))]
-        {
+    {
+        // FIXME: this shouldn't fall through
+        if matches!(query_type, QueryType::RepeatPrompt) {
             let prc = &PromptRepeaterClient;
-            tokio::spawn(prc.prompt(control.id, send, msg));
+            tokio::spawn(prc.prompt(id, send, msg));
         }
     }
+
+    #[cfg(not(test))]
+    {
+        let prc = &PromptRepeaterClient;
+        tokio::spawn(prc.prompt(id, send, msg));
+    }
+}
+
+async fn prompt_multiplex(control: PromptControl) -> Receiver<PromptResponse> {
+    let (s, r) = channel(CHANNEL_SIZE);
 
     tokio::spawn(async move {
         s.send(PromptResponse::Connection(control.id))
@@ -173,6 +160,29 @@ pub(crate) async fn prompt(
             tracing::debug!("freeing prompt recv lock for: {}", control.id);
         }
     });
+
+    r
+}
+
+pub(crate) async fn prompt(
+    Auth(authed): Auth,
+    State(_state): State<Arc<ServerState>>,
+    Query(params): Query<PromptType>,
+    Json(prompt): Json<Prompt>,
+) -> Result<Sse<impl Stream<Item = std::result::Result<Event, std::convert::Infallible>>>> {
+    if !authed {
+        return Err(anyhow!("unauthenticated").into());
+    }
+
+    let control = get_prompt(prompt.connection_id).await?;
+    tracing::debug!("retreived prompt: {}", control.id);
+
+    let send = control.prompt.clone();
+    if let Some(msg) = prompt.prompt {
+        prompt_client(params.query_type, control.id, send, msg).await;
+    }
+
+    let r = prompt_multiplex(control).await;
 
     let stream = ReceiverStream::new(r)
         .map(|x| Event::default().data(&serde_json::to_string(&x).unwrap()))

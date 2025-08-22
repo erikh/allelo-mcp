@@ -12,16 +12,18 @@ use tokio::sync::Mutex;
 
 use super::broker::BrokerPipe;
 
+pub(crate) type CloneableBrokerPipe = Arc<Mutex<BrokerPipe<String>>>;
+
 #[async_trait::async_trait]
 pub trait PromptClient {
-    async fn prompt(&self, id: uuid::Uuid, proxy: Arc<Mutex<BrokerPipe<String>>>, prompt: String);
+    async fn prompt(&self, id: uuid::Uuid, proxy: CloneableBrokerPipe, prompt: String);
 }
 
 pub struct PromptRepeaterClient;
 
 #[async_trait::async_trait]
 impl PromptClient for PromptRepeaterClient {
-    async fn prompt(&self, id: uuid::Uuid, send: Arc<Mutex<BrokerPipe<String>>>, msg: String) {
+    async fn prompt(&self, id: uuid::Uuid, send: CloneableBrokerPipe, msg: String) {
         loop {
             tokio::select! {
                 mut lock = send.lock() => {
