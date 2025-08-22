@@ -1,5 +1,9 @@
 #![allow(dead_code)]
 
+// BOTE: the underlying LLM client's abstraction is not much different than this one. I chose to
+// NIH this so I'd have control of the inner workings. Don't get mad, modifying it to support new
+// APIs should not be very complicated if the llm crate supports it already.
+
 pub enum LLMClientType {
     Ollama,
     Claude,
