@@ -12,7 +12,7 @@ use llm::builder::LLMBuilder;
 use tokio::sync::Mutex;
 
 // NOTE: copy of ReasoningEffort type; it's not clone or debug and I want that.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 enum ReasoningEffort {
     Low,
     Medium,
@@ -29,8 +29,8 @@ impl Into<llm::chat::ReasoningEffort> for ReasoningEffort {
     }
 }
 
-#[derive(Debug, Clone)]
-struct LLMClientOptions {
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct LLMClientOptions {
     temperature: f32,
     system_prompt: Option<String>,
     // NOTE: if this is "some", the reasoning flag is also set; otherwise, it is false.
@@ -50,7 +50,7 @@ pub enum LLMClientType {
 }
 
 impl LLMClientType {
-    fn to_model(&self) -> String {
+    pub(crate) fn to_model(&self) -> String {
         match self {
             // NOTE: each enum corresponds to both a PLATFORM and MODEL. See `build_client` in
             // LLMClient below.
@@ -58,7 +58,7 @@ impl LLMClientType {
         }
     }
 
-    fn to_options(&self) -> LLMClientOptions {
+    pub(crate) fn to_options(&self) -> LLMClientOptions {
         match self {
             // NOTE: each enum corresponds to both a PLATFORM and MODEL. See `build_client` in
             // LLMClient below.
@@ -154,5 +154,26 @@ impl LLMClient {
         };
 
         Ok(builder.build()?)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_client_configuration() {
+        assert_eq!(LLMClientType::Ollama.to_model(), "qwen3:30b");
+        assert_eq!(
+            LLMClientType::Ollama.to_options(),
+            LLMClientOptions {
+                max_tokens: 65536,
+                reasoning_effort: None,
+                system_prompt: None,
+                top_p: 0.8,
+                top_k: 20,
+                temperature: 0.7
+            }
+        );
     }
 }
