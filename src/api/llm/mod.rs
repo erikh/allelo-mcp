@@ -11,6 +11,36 @@ use std::sync::Arc;
 use llm::builder::LLMBuilder;
 use tokio::sync::Mutex;
 
+// NOTE: copy of ReasoningEffort type; it's not clone or debug and I want that.
+#[derive(Debug, Clone)]
+enum ReasoningEffort {
+    Low,
+    Medium,
+    High,
+}
+
+impl Into<llm::chat::ReasoningEffort> for ReasoningEffort {
+    fn into(self) -> llm::chat::ReasoningEffort {
+        match self {
+            ReasoningEffort::Low => llm::chat::ReasoningEffort::Low,
+            ReasoningEffort::Medium => llm::chat::ReasoningEffort::Medium,
+            ReasoningEffort::High => llm::chat::ReasoningEffort::High,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct LLMClientOptions {
+    temperature: f32,
+    system_prompt: Option<String>,
+    // NOTE: if this is "some", the reasoning flag is also set; otherwise, it is false.
+    // this might need to change in the future.
+    reasoning_effort: Option<ReasoningEffort>,
+    top_p: f32,
+    top_k: u32,
+    max_tokens: u32,
+}
+
 #[derive(Debug, Clone)]
 pub enum LLMClientType {
     // NOTE: please provide diverse clients for different models, so they can be pre-programmed
@@ -20,11 +50,26 @@ pub enum LLMClientType {
 }
 
 impl LLMClientType {
-    pub fn to_model(&self) -> String {
+    fn to_model(&self) -> String {
         match self {
             // NOTE: each enum corresponds to both a PLATFORM and MODEL. See `build_client` in
             // LLMClient below.
-            LLMClientType::Ollama => "qwen3:235b".into(),
+            LLMClientType::Ollama => "qwen3:30b".into(),
+        }
+    }
+
+    fn to_options(&self) -> LLMClientOptions {
+        match self {
+            // NOTE: each enum corresponds to both a PLATFORM and MODEL. See `build_client` in
+            // LLMClient below.
+            LLMClientType::Ollama => LLMClientOptions {
+                max_tokens: 65536,
+                temperature: 0.7,
+                top_p: 0.8,
+                top_k: 20,
+                system_prompt: None,
+                reasoning_effort: None,
+            },
         }
     }
 }
@@ -33,7 +78,6 @@ impl LLMClientType {
 pub struct LLMClientParams {
     pub base_url: String,
     pub api_key: Option<String>,
-    pub max_tokens: Option<u32>,
     pub timeout: Option<std::time::Duration>,
     // FIXME: json schema response support
 }
@@ -62,6 +106,8 @@ impl LLMClient {
         client_type: LLMClientType,
         params: LLMClientParams,
     ) -> Result<Box<dyn llm::LLMProvider>> {
+        // FIXME: this should probably be simplified. maybe the client type can configure the
+        // builder directly.
         let mut builder = LLMBuilder::new();
 
         builder = match client_type {
@@ -69,6 +115,7 @@ impl LLMClient {
         };
 
         builder = builder
+            .stream(true)
             .model(client_type.to_model())
             .base_url(params.base_url);
 
@@ -76,13 +123,29 @@ impl LLMClient {
             builder = builder.api_key(key);
         }
 
-        if let Some(max_tokens) = params.max_tokens {
-            builder = builder.max_tokens(max_tokens);
-        }
-
         if let Some(timeout) = params.timeout {
             builder = builder.timeout_seconds(timeout.as_secs());
         }
+
+        let options = client_type.to_options();
+
+        builder = builder
+            .max_tokens(options.max_tokens)
+            .top_p(options.top_p)
+            .top_k(options.top_k)
+            .temperature(options.temperature);
+
+        if let Some(system_prompt) = options.system_prompt {
+            builder = builder.system(system_prompt);
+        }
+
+        builder = if let Some(reasoning_effort) = options.reasoning_effort {
+            builder
+                .reasoning(true)
+                .reasoning_effort(reasoning_effort.into())
+        } else {
+            builder.reasoning(false)
+        };
 
         Ok(builder.build()?)
     }
