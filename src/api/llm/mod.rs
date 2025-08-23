@@ -82,10 +82,12 @@ pub struct LLMClientParams {
     // FIXME: json schema response support
 }
 
+pub type LLMProvider = Arc<Mutex<Box<dyn llm::LLMProvider>>>;
+
 #[derive(Clone)]
 pub struct LLMClient {
     params: LLMClientParams,
-    client: Arc<Mutex<Box<dyn llm::LLMProvider>>>,
+    client: LLMProvider,
 }
 
 impl std::fmt::Debug for LLMClient {
@@ -100,6 +102,10 @@ impl LLMClient {
             params: params.clone(),
             client: Arc::new(Mutex::new(Self::build_client(client_type, params)?)),
         })
+    }
+
+    pub fn into_inner(&self) -> LLMProvider {
+        self.client.clone()
     }
 
     fn build_client(
