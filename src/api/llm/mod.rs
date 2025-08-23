@@ -1,15 +1,12 @@
 #![allow(dead_code)]
-
 use anyhow::Result;
+use llm::builder::LLMBuilder;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 // NOTE: the underlying LLM client's abstraction is not much different than this one. I chose to
 // NIH this so I'd have control of the inner workings. Don't get mad, modifying it to support new
 // APIs should not be very complicated if the llm crate supports it already.
-
-use std::sync::Arc;
-
-use llm::builder::LLMBuilder;
-use tokio::sync::Mutex;
 
 // NOTE: copy of ReasoningEffort type; it's not clone or debug and I want that.
 #[derive(Debug, Clone, PartialEq)]
