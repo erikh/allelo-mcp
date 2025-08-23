@@ -8,12 +8,18 @@ use tokio::sync::Mutex;
 // NIH this so I'd have control of the inner workings. Don't get mad, modifying it to support new
 // APIs should not be very complicated if the llm crate supports it already.
 
-// NOTE: copy of ReasoningEffort type; it's not clone or debug and I want that.
+// NOTE: copy of llm::chat::ReasoningEffort type; it's not clone or debug and I want that.
 #[derive(Debug, Clone, PartialEq)]
 enum ReasoningEffort {
     Low,
     Medium,
     High,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct ReasoningOptions {
+    effort: ReasoningEffort,
+    token_budget: Option<u32>,
 }
 
 impl Into<llm::chat::ReasoningEffort> for ReasoningEffort {
@@ -32,7 +38,8 @@ pub(crate) struct LLMClientOptions {
     system_prompt: Option<String>,
     // NOTE: if this is "some", the reasoning flag is also set; otherwise, it is false.
     // this might need to change in the future.
-    reasoning_effort: Option<ReasoningEffort>,
+    reasoning: Option<ReasoningOptions>,
+    // NOTE: if this is set to None,
     top_p: f32,
     top_k: u32,
     max_tokens: u32,
@@ -65,7 +72,7 @@ impl LLMClientType {
                 top_p: 0.8,
                 top_k: 20,
                 system_prompt: None,
-                reasoning_effort: None,
+                reasoning: None,
             },
         }
     }
@@ -142,10 +149,16 @@ impl LLMClient {
             builder = builder.system(system_prompt);
         }
 
-        builder = if let Some(reasoning_effort) = options.reasoning_effort {
-            builder
+        builder = if let Some(reasoning) = options.reasoning {
+            builder = builder
                 .reasoning(true)
-                .reasoning_effort(reasoning_effort.into())
+                .reasoning_effort(reasoning.effort.into());
+
+            if let Some(token_budget) = reasoning.token_budget {
+                builder = builder.reasoning_budget_tokens(token_budget);
+            }
+
+            builder
         } else {
             builder.reasoning(false)
         };
@@ -165,7 +178,7 @@ mod tests {
             LLMClientType::Ollama.to_options(),
             LLMClientOptions {
                 max_tokens: 65536,
-                reasoning_effort: None,
+                reasoning: None,
                 system_prompt: None,
                 top_p: 0.8,
                 top_k: 20,
