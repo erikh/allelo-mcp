@@ -1,12 +1,7 @@
-#![allow(dead_code)]
 use anyhow::Result;
-use futures_util::StreamExt;
 use llm::{builder::LLMBuilder, chat::ChatMessageBuilder};
 use std::sync::Arc;
-use tokio::sync::{
-    mpsc::{unbounded_channel, UnboundedReceiver},
-    Mutex,
-};
+use tokio::sync::Mutex;
 
 // NOTE: the underlying LLM client's abstraction is not much different than this one. I chose to
 // NIH this so I'd have control of the inner workings. Don't get mad, modifying it to support new
@@ -14,6 +9,7 @@ use tokio::sync::{
 
 // NOTE: copy of llm::chat::ReasoningEffort type; it's not clone or debug and I want that.
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 enum ReasoningEffort {
     Low,
     Medium,
@@ -129,26 +125,18 @@ impl LLMClient {
         self.client.clone()
     }
 
-    pub async fn prompt(&self, prompt: String) -> UnboundedReceiver<String> {
-        let (s, r) = unbounded_channel();
-        let mut stream = self
+    pub async fn prompt(&self, prompt: String) -> Result<String> {
+        // FIXME: I can't seem to get this library to stream with ollama
+        Ok(self
             .client
             .lock()
             .await
-            .chat_stream(&[ChatMessageBuilder::new(llm::chat::ChatRole::User)
+            .chat(&[ChatMessageBuilder::new(llm::chat::ChatRole::User)
                 .content(prompt)
                 .build()])
-            .await
-            .unwrap();
-        tokio::spawn(async move {
-            let next = stream.next().await;
-            while let Some(item) = &next {
-                if let Ok(item) = item {
-                    s.send(item.clone()).unwrap();
-                }
-            }
-        });
-        r
+            .await?
+            .text()
+            .unwrap_or_default())
     }
 
     fn build_client(
@@ -166,7 +154,7 @@ impl LLMClient {
         };
 
         builder = builder
-            .stream(true)
+            .stream(false) // FIXME: I can't seem to get this library to stream with ollama
             .model(client_type.to_model())
             .base_url(params.base_url);
 
