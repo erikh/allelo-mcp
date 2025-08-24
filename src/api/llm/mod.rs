@@ -1,7 +1,11 @@
 use anyhow::Result;
+use futures_util::StreamExt;
 use llm::{builder::LLMBuilder, chat::ChatMessageBuilder};
 use std::sync::Arc;
-use tokio::sync::Mutex;
+use tokio::sync::{
+    mpsc::{unbounded_channel, UnboundedReceiver},
+    Mutex,
+};
 
 // NOTE: the underlying LLM client's abstraction is not much different than this one. I chose to
 // NIH this so I'd have control of the inner workings. Don't get mad, modifying it to support new
@@ -126,20 +130,26 @@ impl LLMClient {
         self.client.clone()
     }
 
-    pub async fn prompt(&self, prompt: String) -> Result<String> {
+    pub async fn prompt(&self, prompt: String) -> Result<UnboundedReceiver<String>> {
         // FIXME: I can't seem to get this library to stream with ollama
-        Ok(self
+        let mut stream = self
             .client
             .lock()
             .await
-            .chat(&[ChatMessageBuilder::new(llm::chat::ChatRole::User)
+            .chat_stream(&[ChatMessageBuilder::new(llm::chat::ChatRole::User)
                 .content(prompt)
                 .build()])
-            .await?
-            .text()
-            .unwrap_or_default()
-            .trim()
-            .to_string())
+            .await?;
+
+        let (s, r) = unbounded_channel();
+
+        tokio::spawn(async move {
+            while let Some(Ok(item)) = stream.next().await {
+                s.send(item).unwrap()
+            }
+        });
+
+        Ok(r)
     }
 
     fn build_client(

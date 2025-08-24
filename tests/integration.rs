@@ -12,9 +12,11 @@ async fn test_llm_client() {
             },
         )
         .unwrap();
-        let response = client.prompt(prompt.into()).await.unwrap();
-        eprintln!("response from '{}' LLM client test: '{}'", prompt, response);
-        assert_ne!(response, "");
+        let mut response = client.prompt(prompt.into()).await.unwrap();
+        while let Some(response) = response.recv().await {
+            eprintln!("response from '{}' LLM client test: '{}'", prompt, response);
+            assert_ne!(response, "");
+        }
     }
 
     run_prompt("hello").await;
