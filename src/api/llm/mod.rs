@@ -50,7 +50,11 @@ pub enum LLMClientType {
     // NOTE: please provide diverse clients for different models, so they can be pre-programmed
     // with appropriate parameters independently without forcing this to be a part of the client
     // user's implementation.
-    Ollama,
+
+    // Qwen production model
+    OllamaQwen,
+    // Vicuna low-memory model for integration testing
+    OllamaVicuna,
 }
 
 impl LLMClientType {
@@ -58,7 +62,8 @@ impl LLMClientType {
         match self {
             // NOTE: each enum corresponds to both a PLATFORM and MODEL. See `build_client` in
             // LLMClient below.
-            LLMClientType::Ollama => "qwen3:30b".into(),
+            LLMClientType::OllamaQwen => "qwen3:30b".into(),
+            LLMClientType::OllamaVicuna => "vicuna:7b".into(),
         }
     }
 
@@ -66,11 +71,19 @@ impl LLMClientType {
         match self {
             // NOTE: each enum corresponds to both a PLATFORM and MODEL. See `build_client` in
             // LLMClient below.
-            LLMClientType::Ollama => LLMClientOptions {
+            LLMClientType::OllamaQwen => LLMClientOptions {
                 max_tokens: 65536,
                 temperature: 0.7,
                 top_p: 0.8,
                 top_k: 20,
+                system_prompt: None,
+                reasoning: None,
+            },
+            LLMClientType::OllamaVicuna => LLMClientOptions {
+                max_tokens: 512,
+                temperature: 0.7,
+                top_p: 0.95,
+                top_k: 40,
                 system_prompt: None,
                 reasoning: None,
             },
@@ -121,7 +134,9 @@ impl LLMClient {
         let mut builder = LLMBuilder::new();
 
         builder = match client_type {
-            LLMClientType::Ollama => builder.backend(llm::builder::LLMBackend::Ollama),
+            LLMClientType::OllamaQwen | LLMClientType::OllamaVicuna => {
+                builder.backend(llm::builder::LLMBackend::Ollama)
+            }
         };
 
         builder = builder
@@ -173,9 +188,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_client_configuration() {
-        assert_eq!(LLMClientType::Ollama.to_model(), "qwen3:30b");
+        assert_eq!(LLMClientType::OllamaQwen.to_model(), "qwen3:30b");
         assert_eq!(
-            LLMClientType::Ollama.to_options(),
+            LLMClientType::OllamaQwen.to_options(),
             LLMClientOptions {
                 max_tokens: 65536,
                 reasoning: None,
