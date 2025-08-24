@@ -136,7 +136,9 @@ impl LLMClient {
                 .build()])
             .await?
             .text()
-            .unwrap_or_default())
+            .unwrap_or_default()
+            .trim()
+            .to_string())
     }
 
     fn build_client(
