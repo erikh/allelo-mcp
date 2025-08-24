@@ -1,8 +1,12 @@
 #![allow(dead_code)]
 use anyhow::Result;
-use llm::builder::LLMBuilder;
+use futures_util::StreamExt;
+use llm::{builder::LLMBuilder, chat::ChatMessageBuilder};
 use std::sync::Arc;
-use tokio::sync::Mutex;
+use tokio::sync::{
+    mpsc::{unbounded_channel, UnboundedReceiver},
+    Mutex,
+};
 
 // NOTE: the underlying LLM client's abstraction is not much different than this one. I chose to
 // NIH this so I'd have control of the inner workings. Don't get mad, modifying it to support new
@@ -123,6 +127,28 @@ impl LLMClient {
 
     pub fn into_inner(&self) -> LLMProvider {
         self.client.clone()
+    }
+
+    pub async fn prompt(&self, prompt: String) -> UnboundedReceiver<String> {
+        let (s, r) = unbounded_channel();
+        let mut stream = self
+            .client
+            .lock()
+            .await
+            .chat_stream(&[ChatMessageBuilder::new(llm::chat::ChatRole::User)
+                .content(prompt)
+                .build()])
+            .await
+            .unwrap();
+        tokio::spawn(async move {
+            let next = stream.next().await;
+            while let Some(item) = &next {
+                if let Ok(item) = item {
+                    s.send(item.clone()).unwrap();
+                }
+            }
+        });
+        r
     }
 
     fn build_client(

@@ -1,5 +1,5 @@
 test: start-ollama
-	cargo test
+	cargo test -- --nocapture
 	make stop-ollama
 
 start-ollama: stop-ollama
