@@ -9,6 +9,7 @@ use tokio::sync::Mutex;
 
 // NOTE: copy of llm::chat::ReasoningEffort type; it's not clone or debug and I want that.
 #[derive(Debug, Clone, PartialEq)]
+// FIXME: we don't use reasoning for anything yet
 #[allow(dead_code)]
 enum ReasoningEffort {
     Low,
