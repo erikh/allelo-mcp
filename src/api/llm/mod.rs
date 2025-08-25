@@ -44,7 +44,6 @@ pub(crate) struct LLMClientOptions {
     // NOTE: if this is "some", the reasoning flag is also set; otherwise, it is false.
     // this might need to change in the future.
     reasoning: Option<ReasoningOptions>,
-    // NOTE: if this is set to None,
     top_p: f32,
     top_k: u32,
     max_tokens: u32,
