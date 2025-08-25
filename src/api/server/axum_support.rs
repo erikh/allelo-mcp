@@ -10,7 +10,7 @@ use std::{
 };
 use tokio::sync::Mutex;
 
-use crate::api::server::Config;
+use crate::api::{llm::LLMClient, server::Config};
 
 use super::broker::BrokerPipe;
 
@@ -46,16 +46,27 @@ pub struct PromptLLMClient(pub Config);
 #[async_trait::async_trait]
 impl PromptClient for PromptLLMClient {
     async fn prompt(&self, id: uuid::Uuid, send: CloneableBrokerPipe, msg: String) {
+        let client = LLMClient::new(
+            self.0
+                .client_type
+                .clone()
+                .expect("Please configure the LLM Client"),
+            self.0
+                .client_params
+                .clone()
+                .expect("Please configure the LLM Client"),
+        )
+        .unwrap();
+
+        let mut prompt = client.prompt(msg).await.unwrap();
+
         loop {
-            tokio::select! {
-                mut lock = send.lock() => {
-                    tracing::debug!("send lock acquired for: {}", id);
-                    tokio::select! {
-                        _ = lock.send_message(msg.clone()) => {}
-                    }
-                }
-                _ = tokio::time::sleep(std::time::Duration::from_millis(100)) => { },
+            while let Some(result) = prompt.recv().await {
+                let mut lock = send.lock().await;
+                tracing::debug!("send lock acquiredl for: {}", id);
+                lock.send_message(result).await.unwrap();
             }
+
             tracing::debug!("freeing send lock for: {}", id);
         }
     }
