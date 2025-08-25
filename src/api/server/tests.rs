@@ -5,7 +5,8 @@ use reqwest_eventsource::Event;
 #[tokio::test]
 async fn test_sse() {
     let handle = start_api_server(Config::default()).await.unwrap();
-    let client = super::super::client::Client::new(default_api_url());
+    let client =
+        super::super::client::Client::new_testing(default_api_url(), QueryType::RepeatPrompt);
     let mut r = client
         .prompt(Prompt {
             connection_id: Default::default(),

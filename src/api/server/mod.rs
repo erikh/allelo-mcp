@@ -35,7 +35,9 @@ impl Server {
                 .route("/input", put(input))
                 .route("/status", get(status))
                 .route("/metrics", get(metrics))
-                .with_state(Arc::new(ServerState {}))
+                .with_state(Arc::new(ServerState {
+                    config: config.clone(),
+                }))
                 .layer(
                     ServiceBuilder::new()
                         .layer(

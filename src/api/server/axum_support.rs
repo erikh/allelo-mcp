@@ -73,7 +73,9 @@ impl PromptClient for PromptLLMClient {
 }
 
 #[derive(Debug, Clone)]
-pub struct ServerState {}
+pub struct ServerState {
+    pub config: Config,
+}
 
 #[derive(Debug, Clone, Default)]
 pub struct AppError(pub ProblemDetails);

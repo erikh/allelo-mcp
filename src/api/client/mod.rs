@@ -1,3 +1,5 @@
+#[cfg(test)]
+use crate::api::server::QueryType;
 use crate::api::server::Search;
 
 use super::server::{Input, McpResponse, Metrics, Prompt, SearchResults, Status};
@@ -9,13 +11,29 @@ use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver};
 #[derive(Debug, Clone)]
 pub struct Client {
     base_url: url::Url,
+    #[cfg(test)]
+    #[allow(dead_code)]
+    query_type: Option<QueryType>,
 }
 
 pub type SseResult = Result<UnboundedReceiver<Result<Event>>>;
 
 impl Client {
     pub fn new(base_url: url::Url) -> Self {
-        Self { base_url }
+        Self {
+            base_url,
+            #[cfg(test)]
+            query_type: None,
+        }
+    }
+
+    #[cfg(test)]
+    #[allow(dead_code)]
+    pub fn new_testing(base_url: url::Url, query_type: QueryType) -> Self {
+        Self {
+            base_url,
+            query_type: Some(query_type),
+        }
     }
 
     pub async fn mcp_response(&self, _input: McpResponse) -> Result<()> {
@@ -39,8 +57,16 @@ impl Client {
     }
 
     pub async fn prompt(&self, input: Prompt) -> SseResult {
+        #[cfg(test)]
         let mut url = self.base_url.join("/prompt")?;
-        url.set_query(Some("query_type=repeat_prompt"));
+        #[cfg(not(test))]
+        let url = self.base_url.join("/prompt")?;
+        #[cfg(test)]
+        match self.query_type {
+            Some(QueryType::RepeatPrompt) => url.set_query(Some("query_type=repeat_prompt")),
+            _ => {}
+        }
+
         let mut es = reqwest_eventsource::EventSource::post(
             url.to_string(),
             "application/json",

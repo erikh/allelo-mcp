@@ -1,5 +1,7 @@
 use crate::api::server::broker::{McpPipe, PromptPipe};
-use crate::api::server::{CloneableBrokerPipe, PromptClient, PromptRepeaterClient};
+#[cfg(test)]
+use crate::api::server::PromptRepeaterClient;
+use crate::api::server::{CloneableBrokerPipe, Config, PromptClient, PromptLLMClient};
 
 use super::broker::{CHANNEL_SIZE, GLOBAL_BROKER};
 use super::{AppError, Auth, ServerState, ServiceAuth};
@@ -53,7 +55,7 @@ pub enum PromptResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PromptType {
-    query_type: QueryType,
+    query_type: Option<QueryType>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -95,24 +97,30 @@ async fn get_prompt(id: Option<uuid::Uuid>) -> Result<PromptControl> {
 }
 
 async fn prompt_client(
-    #[allow(unused)] query_type: QueryType,
+    #[allow(unused)] query_type: Option<QueryType>,
+    config: Config,
     id: uuid::Uuid,
     send: CloneableBrokerPipe,
     msg: String,
 ) {
     #[cfg(test)]
     {
-        // FIXME: this shouldn't fall through
-        if matches!(query_type, QueryType::RepeatPrompt) {
-            let prc = &PromptRepeaterClient;
-            tokio::spawn(prc.prompt(id, send, msg));
+        if let Some(query_type) = query_type {
+            // FIXME: this shouldn't fall through
+            if matches!(query_type, QueryType::RepeatPrompt) {
+                let prc = &PromptRepeaterClient;
+                tokio::spawn(prc.prompt(id, send, msg));
+            }
+        } else {
+            let prc = PromptLLMClient(config);
+            tokio::spawn(async move { prc.prompt(id, send, msg).await });
         }
     }
 
     #[cfg(not(test))]
     {
-        let prc = &PromptRepeaterClient;
-        tokio::spawn(prc.prompt(id, send, msg));
+        let prc = PromptLLMClient(config);
+        tokio::spawn(async move { prc.prompt(id, send, msg).await });
     }
 }
 
@@ -168,7 +176,7 @@ async fn prompt_multiplex(control: PromptControl) -> Receiver<PromptResponse> {
 
 pub(crate) async fn prompt(
     Auth(authed): Auth,
-    State(_state): State<Arc<ServerState>>,
+    State(state): State<Arc<ServerState>>,
     Query(params): Query<PromptType>,
     Json(prompt): Json<Prompt>,
 ) -> Result<Sse<impl Stream<Item = std::result::Result<Event, std::convert::Infallible>>>> {
@@ -181,7 +189,14 @@ pub(crate) async fn prompt(
 
     let send = control.prompt.clone();
     if let Some(msg) = prompt.prompt {
-        prompt_client(params.query_type, control.id, send, msg).await;
+        prompt_client(
+            params.query_type,
+            state.config.clone(),
+            control.id,
+            send,
+            msg,
+        )
+        .await;
     }
 
     let r = prompt_multiplex(control).await;
