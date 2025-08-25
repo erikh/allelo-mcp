@@ -10,6 +10,8 @@ use std::{
 };
 use tokio::sync::Mutex;
 
+use crate::api::server::Config;
+
 use super::broker::BrokerPipe;
 
 pub(crate) type CloneableBrokerPipe = Arc<Mutex<BrokerPipe<String>>>;
@@ -23,6 +25,26 @@ pub struct PromptRepeaterClient;
 
 #[async_trait::async_trait]
 impl PromptClient for PromptRepeaterClient {
+    async fn prompt(&self, id: uuid::Uuid, send: CloneableBrokerPipe, msg: String) {
+        loop {
+            tokio::select! {
+                mut lock = send.lock() => {
+                    tracing::debug!("send lock acquired for: {}", id);
+                    tokio::select! {
+                        _ = lock.send_message(msg.clone()) => {}
+                    }
+                }
+                _ = tokio::time::sleep(std::time::Duration::from_millis(100)) => { },
+            }
+            tracing::debug!("freeing send lock for: {}", id);
+        }
+    }
+}
+
+pub struct PromptLLMClient(pub Config);
+
+#[async_trait::async_trait]
+impl PromptClient for PromptLLMClient {
     async fn prompt(&self, id: uuid::Uuid, send: CloneableBrokerPipe, msg: String) {
         loop {
             tokio::select! {

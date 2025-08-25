@@ -3,6 +3,8 @@ use std::{net::SocketAddr, path::PathBuf};
 use tracing::info;
 use tracing_subscriber::FmtSubscriber;
 
+use crate::api::llm::{LLMClientParams, LLMClientType};
+
 #[derive(Debug, Clone, Deserialize)]
 pub enum LogLevel {
     #[serde(rename = "warn")]
@@ -45,6 +47,8 @@ impl From<tracing::Level> for LogLevel {
 pub struct Config {
     pub listen: SocketAddr,
     pub log_level: LogLevel,
+    pub client_type: Option<LLMClientType>,
+    pub client_params: Option<LLMClientParams>,
 }
 
 impl Default for Config {
@@ -52,6 +56,8 @@ impl Default for Config {
         Config {
             listen: "127.0.0.1:8999".parse().unwrap(),
             log_level: LogLevel::Info,
+            client_params: None,
+            client_type: None,
         }
     }
 }

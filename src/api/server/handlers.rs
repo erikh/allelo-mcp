@@ -60,6 +60,8 @@ pub struct PromptType {
 pub enum QueryType {
     #[serde(rename = "repeat_prompt")]
     RepeatPrompt,
+    #[serde(rename = "api_client")]
+    APIClient,
 }
 
 #[derive(Debug, Clone)]

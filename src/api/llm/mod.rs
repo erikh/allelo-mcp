@@ -1,6 +1,7 @@
 use anyhow::Result;
 use futures_util::StreamExt;
 use llm::{builder::LLMBuilder, chat::ChatMessageBuilder};
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::{
     mpsc::{unbounded_channel, UnboundedReceiver},
@@ -49,7 +50,7 @@ pub(crate) struct LLMClientOptions {
     max_tokens: u32,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum LLMClientType {
     // NOTE: please provide diverse clients for different models, so they can be pre-programmed
     // with appropriate parameters independently without forcing this to be a part of the client
@@ -95,7 +96,7 @@ impl LLMClientType {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LLMClientParams {
     pub base_url: String,
     pub api_key: Option<String>,
