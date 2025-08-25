@@ -6,7 +6,9 @@ use reqwest_eventsource::Event;
 async fn test_sse() {
     let handle = start_api_server(Config::default()).await.unwrap();
     let client =
-        super::super::client::Client::new_testing(default_api_url(), QueryType::RepeatPrompt);
+        super::super::client::Client::new_testing(default_api_url(), QueryType::RepeatPrompt)
+            .await
+            .unwrap();
     let mut r = client
         .prompt(Prompt {
             connection_id: Default::default(),

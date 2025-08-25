@@ -44,7 +44,7 @@ async fn test_real_server_prompt() {
     .unwrap();
 
     async fn run_prompt(prompt: &str) {
-        let client = Client::new(default_api_url());
+        let client = Client::new(default_api_url()).await.unwrap();
         let mut r = client
             .prompt(Prompt {
                 connection_id: Default::default(),

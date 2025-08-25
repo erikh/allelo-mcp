@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 #[cfg(test)]
 use crate::api::server::QueryType;
 
@@ -13,32 +15,38 @@ use tokio::{
     sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
 };
 
+type McpPipe = (UnboundedSender<Vec<u8>>, UnboundedReceiver<Vec<u8>>);
+
 #[derive(Debug, Clone)]
 pub struct Client {
     base_url: url::Url,
     #[cfg(test)]
     #[allow(dead_code)]
     query_type: Option<QueryType>,
+    #[allow(dead_code)]
+    mcp: Arc<McpPipe>,
 }
 
 pub type SseResult = Result<UnboundedReceiver<Result<Event>>>;
 
 impl Client {
-    pub fn new(base_url: url::Url) -> Self {
-        Self {
+    pub async fn new(base_url: url::Url) -> Result<Self> {
+        Ok(Self {
             base_url,
             #[cfg(test)]
             query_type: None,
-        }
+            mcp: Arc::new(Self::init_mcp().await?),
+        })
     }
 
     #[cfg(test)]
     #[allow(dead_code)]
-    pub fn new_testing(base_url: url::Url, query_type: QueryType) -> Self {
-        Self {
+    pub async fn new_testing(base_url: url::Url, query_type: QueryType) -> Result<Self> {
+        Ok(Self {
             base_url,
             query_type: Some(query_type),
-        }
+            mcp: Arc::new(Self::init_mcp().await?),
+        })
     }
 
     pub async fn mcp_response(&self, _input: McpResponse) -> Result<()> {
@@ -106,22 +114,22 @@ impl Client {
         Ok(r)
     }
 
-    #[allow(dead_code)]
-    async fn init_mcp(&self) -> Result<(UnboundedSender<Vec<u8>>, UnboundedReceiver<Vec<u8>>)> {
+    async fn init_mcp() -> Result<McpPipe> {
         let (in_s, mut in_r) = unbounded_channel::<Vec<u8>>();
         let (out_s, out_r) = unbounded_channel();
 
         let (stdin_r, mut stdin_w) = tokio::io::simplex(4096);
         let (mut stdout_r, stdout_w) = tokio::io::simplex(4096);
 
-        let service = Service::default()
-            .serve((stdin_r, stdout_w))
-            .await
-            .inspect_err(|e| {
-                tracing::error!("serving error: {:?}", e);
-            })?;
-
         tokio::spawn(async move {
+            let service = Service::default()
+                .serve((stdin_r, stdout_w))
+                .await
+                .inspect_err(|e| {
+                    tracing::error!("serving error: {:?}", e);
+                })
+                .unwrap();
+
             let _ = service.waiting().await;
         });
 
