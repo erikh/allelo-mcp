@@ -8,7 +8,10 @@ use super::server::{Input, McpResponse, Metrics, Prompt, SearchResults, Status};
 use anyhow::{anyhow, Result};
 use futures_util::StreamExt;
 use reqwest_eventsource::Event;
-use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
+    sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
+};
 
 #[derive(Debug, Clone)]
 pub struct Client {
@@ -104,12 +107,12 @@ impl Client {
     }
 
     #[allow(dead_code)]
-    async fn init_mcp<T, R>(&self) -> Result<(UnboundedSender<T>, UnboundedReceiver<R>)> {
-        let (in_s, _in_r) = unbounded_channel();
-        let (_out_s, out_r) = unbounded_channel();
+    async fn init_mcp(&self) -> Result<(UnboundedSender<Vec<u8>>, UnboundedReceiver<Vec<u8>>)> {
+        let (in_s, mut in_r) = unbounded_channel::<Vec<u8>>();
+        let (out_s, out_r) = unbounded_channel();
 
-        let (stdin_r, _stdin_w) = tokio::io::simplex(4096);
-        let (_stdout_r, stdout_w) = tokio::io::simplex(4096);
+        let (stdin_r, mut stdin_w) = tokio::io::simplex(4096);
+        let (mut stdout_r, stdout_w) = tokio::io::simplex(4096);
 
         let service = Service::default()
             .serve((stdin_r, stdout_w))
@@ -118,7 +121,30 @@ impl Client {
                 tracing::error!("serving error: {:?}", e);
             })?;
 
-        tokio::spawn(async move { service.waiting().await.unwrap() });
+        tokio::spawn(async move {
+            let _ = service.waiting().await;
+        });
+
+        tokio::spawn(async move {
+            while let Some(x) = in_r.recv().await {
+                if let Err(_) = stdin_w.write_all(x.as_slice()).await {
+                    return;
+                }
+            }
+        });
+
+        tokio::spawn(async move {
+            loop {
+                let mut dst = String::new();
+                if let Err(_) = stdout_r.read_to_string(&mut dst).await {
+                    return;
+                }
+
+                if let Err(_) = out_s.send(dst.as_bytes().to_vec()) {
+                    return;
+                }
+            }
+        });
 
         Ok((in_s, out_r))
     }
