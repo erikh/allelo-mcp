@@ -1,12 +1,14 @@
 #[cfg(test)]
 use crate::api::server::QueryType;
-use crate::api::server::Search;
+
+use crate::{api::server::Search, mcp::service::Service};
+use rmcp::ServiceExt;
 
 use super::server::{Input, McpResponse, Metrics, Prompt, SearchResults, Status};
 use anyhow::{anyhow, Result};
 use futures_util::StreamExt;
 use reqwest_eventsource::Event;
-use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver};
+use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 
 #[derive(Debug, Clone)]
 pub struct Client {
@@ -99,5 +101,25 @@ impl Client {
         });
 
         Ok(r)
+    }
+
+    #[allow(dead_code)]
+    async fn init_mcp<T, R>(&self) -> Result<(UnboundedSender<T>, UnboundedReceiver<R>)> {
+        let (in_s, _in_r) = unbounded_channel();
+        let (_out_s, out_r) = unbounded_channel();
+
+        let (stdin_r, _stdin_w) = tokio::io::simplex(4096);
+        let (_stdout_r, stdout_w) = tokio::io::simplex(4096);
+
+        let service = Service::default()
+            .serve((stdin_r, stdout_w))
+            .await
+            .inspect_err(|e| {
+                tracing::error!("serving error: {:?}", e);
+            })?;
+
+        tokio::spawn(async move { service.waiting().await.unwrap() });
+
+        Ok((in_s, out_r))
     }
 }
