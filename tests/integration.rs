@@ -1,4 +1,6 @@
 use allelo_mcp::api::llm::*;
+use allelo_mcp::api::server::{Config, LogLevel};
+use allelo_mcp::testutil::*;
 
 #[tokio::test]
 async fn test_llm_client() {
@@ -24,4 +26,22 @@ async fn test_llm_client() {
     run_prompt("what is the capital of turkey?").await;
     run_prompt("what was the capital of persia?").await;
     run_prompt("what was archimedes famous for doing?").await;
+}
+
+#[tokio::test]
+async fn test_real_server_prompt() {
+    let handle = start_api_server(Config {
+        listen: "127.0.0.1:8999".parse().unwrap(),
+        log_level: LogLevel::Info,
+        client_type: Some(LLMClientType::OllamaVicuna),
+        client_params: Some(LLMClientParams {
+            base_url: "http://localhost:11434".into(),
+            api_key: None,
+            timeout: None,
+        }),
+    })
+    .await
+    .unwrap();
+
+    shutdown_handle(handle);
 }
