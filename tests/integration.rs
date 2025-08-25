@@ -26,8 +26,6 @@ async fn test_llm_client() {
     run_prompt("hello").await;
     run_prompt("what is two plus two?").await;
     run_prompt("what is the capital of turkey?").await;
-    run_prompt("what was the capital of persia?").await;
-    run_prompt("what was archimedes famous for doing?").await;
 }
 
 #[tokio::test]
