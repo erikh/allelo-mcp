@@ -57,8 +57,10 @@ pub enum LLMClientType {
     // user's implementation.
 
     // Qwen production model
+    #[serde(rename = "ollama_qwen")]
     OllamaQwen,
     // Vicuna low-memory model for integration testing
+    #[serde(rename = "ollama_vicuna")]
     OllamaVicuna,
 }
 

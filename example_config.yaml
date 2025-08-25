@@ -3,3 +3,6 @@ listen: "127.0.0.1:8000"
 # in from most important/quietest to least important/noisy, one of: error,
 # warn, info, debug, trace
 log_level: debug
+client_type: ollama_vicuna
+client_params:
+  base_url: "http://localhost:11434"
