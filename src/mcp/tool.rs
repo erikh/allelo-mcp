@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+use llm::builder::{FunctionBuilder, ParamBuilder};
 use rmcp::model::{ListPromptsResult, Prompt, PromptArgument};
 
 #[derive(Debug, Clone)]
@@ -16,6 +17,18 @@ pub(crate) struct ToolArgument {
 }
 
 impl ToolFunction {
+    pub(crate) fn required_arguments(&self) -> Vec<String> {
+        let mut v = Vec::new();
+
+        for item in &self.args {
+            if item.required {
+                v.push(item.name.clone())
+            }
+        }
+
+        v
+    }
+
     pub(crate) fn into_rmcp_arguments(&self) -> Option<Vec<PromptArgument>> {
         if self.args.is_empty() {
             None
@@ -32,6 +45,26 @@ impl Into<Prompt> for ToolFunction {
             Some(&self.description),
             self.into_rmcp_arguments(),
         )
+    }
+}
+
+impl Into<ParamBuilder> for ToolArgument {
+    fn into(self) -> ParamBuilder {
+        ParamBuilder::new(&self.name).description(&self.description)
+    }
+}
+
+impl Into<FunctionBuilder> for ToolFunction {
+    fn into(self) -> FunctionBuilder {
+        let mut builder = FunctionBuilder::new(&self.name)
+            .required(self.required_arguments())
+            .description(&self.description);
+
+        for arg in self.args {
+            builder = builder.param(arg.into())
+        }
+
+        builder
     }
 }
 
