@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{ops::Deref, sync::Arc};
 
 #[cfg(test)]
 use crate::api::server::QueryType;
@@ -23,7 +23,6 @@ pub struct Client {
     #[cfg(test)]
     #[allow(dead_code)]
     query_type: Option<QueryType>,
-    #[allow(dead_code)]
     mcp: Arc<McpPipe>,
 }
 
@@ -87,6 +86,7 @@ impl Client {
         );
 
         let (s, r) = unbounded_channel();
+        let (_mcp_in, _mcp_out) = self.mcp.clone().deref();
 
         tokio::spawn(async move {
             while let Some(event) = es.next().await {
