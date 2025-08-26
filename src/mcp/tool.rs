@@ -2,6 +2,10 @@
 use llm::builder::{FunctionBuilder, ParamBuilder};
 use rmcp::model::{ListPromptsResult, Prompt, PromptArgument};
 
+// NOTE: rmcp and llm are server and client implementations of MCP respectively, but they use
+// independent types. Most of the fields are very similar, and the serialized result is exactly the
+// same, so a lot of this is from/into to ensure these types translate between each other cleanly.
+
 #[derive(Debug, Clone)]
 pub(crate) struct ToolFunction {
     name: String,
