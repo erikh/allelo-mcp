@@ -69,6 +69,6 @@ impl ServerHandler for Service {
         _request: Option<PaginatedRequestParam>,
         _: RequestContext<RoleServer>,
     ) -> Result<ListPromptsResult, rmcp::ErrorData> {
-        Ok(super::tool::tool_list())
+        Ok(super::tool::tool_list().into())
     }
 }
