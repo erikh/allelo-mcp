@@ -122,15 +122,9 @@ impl Client {
         let (mut stdout_r, stdout_w) = tokio::io::simplex(4096);
 
         tokio::spawn(async move {
-            let service = Service::default()
-                .serve((stdin_r, stdout_w))
-                .await
-                .inspect_err(|e| {
-                    tracing::error!("serving error: {:?}", e);
-                })
-                .unwrap();
-
-            let _ = service.waiting().await;
+            if let Ok(service) = Service::default().serve((stdin_r, stdout_w)).await {
+                let _ = service.waiting().await;
+            }
         });
 
         tokio::spawn(async move {

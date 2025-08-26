@@ -147,7 +147,9 @@ impl LLMClient {
 
         tokio::spawn(async move {
             while let Some(Ok(item)) = stream.next().await {
-                s.send(item).unwrap()
+                if let Err(_) = s.send(item) {
+                    return;
+                }
             }
         });
 

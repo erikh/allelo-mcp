@@ -128,9 +128,9 @@ async fn prompt_multiplex(control: PromptControl) -> Receiver<PromptResponse> {
     let (s, r) = channel(CHANNEL_SIZE);
 
     tokio::spawn(async move {
-        s.send(PromptResponse::Connection(control.id))
-            .await
-            .unwrap();
+        if let Err(_) = s.send(PromptResponse::Connection(control.id)).await {
+            return;
+        }
 
         loop {
             if s.is_closed() {
@@ -201,7 +201,7 @@ pub(crate) async fn prompt(
 
     let r = prompt_multiplex(control).await;
     let stream = ReceiverStream::new(r)
-        .map(|x| Event::default().data(&serde_json::to_string(&x).unwrap()))
+        .map(|x| Event::default().data(&serde_json::to_string(&x).unwrap_or_default()))
         .map(Ok)
         .throttle(Duration::from_millis(10));
     Ok(Sse::new(stream).keep_alive(KeepAlive::default()))

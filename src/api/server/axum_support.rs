@@ -1,3 +1,6 @@
+use super::broker::BrokerPipe;
+use crate::api::{llm::LLMClient, server::Config};
+use anyhow::Result;
 use axum::{
     extract::FromRequestParts,
     http::request::Parts,
@@ -10,22 +13,23 @@ use std::{
 };
 use tokio::sync::Mutex;
 
-use crate::api::{llm::LLMClient, server::Config};
-
-use super::broker::BrokerPipe;
-
 pub(crate) type CloneableBrokerPipe = Arc<Mutex<BrokerPipe<String>>>;
 
 #[async_trait::async_trait]
 pub trait PromptClient {
-    async fn prompt(&self, id: uuid::Uuid, proxy: CloneableBrokerPipe, prompt: String);
+    async fn prompt(
+        &self,
+        id: uuid::Uuid,
+        proxy: CloneableBrokerPipe,
+        prompt: String,
+    ) -> Result<()>;
 }
 
 pub struct PromptRepeaterClient;
 
 #[async_trait::async_trait]
 impl PromptClient for PromptRepeaterClient {
-    async fn prompt(&self, id: uuid::Uuid, send: CloneableBrokerPipe, msg: String) {
+    async fn prompt(&self, id: uuid::Uuid, send: CloneableBrokerPipe, msg: String) -> Result<()> {
         loop {
             tokio::select! {
                 mut lock = send.lock() => {
@@ -45,7 +49,7 @@ pub struct PromptLLMClient(pub Config);
 
 #[async_trait::async_trait]
 impl PromptClient for PromptLLMClient {
-    async fn prompt(&self, id: uuid::Uuid, send: CloneableBrokerPipe, msg: String) {
+    async fn prompt(&self, id: uuid::Uuid, send: CloneableBrokerPipe, msg: String) -> Result<()> {
         let client = LLMClient::new(
             self.0
                 .client_type
@@ -55,16 +59,15 @@ impl PromptClient for PromptLLMClient {
                 .client_params
                 .clone()
                 .expect("Please configure the LLM Client"),
-        )
-        .unwrap();
+        )?;
 
-        let mut prompt = client.prompt(msg).await.unwrap();
+        let mut prompt = client.prompt(msg).await?;
 
         loop {
             while let Some(result) = prompt.recv().await {
                 let mut lock = send.lock().await;
                 tracing::debug!("send lock acquiredl for: {}", id);
-                lock.send_message(result).await.unwrap();
+                lock.send_message(result).await?;
             }
 
             tracing::debug!("freeing send lock for: {}", id);
@@ -87,18 +90,16 @@ where
     fn from(value: E) -> Self {
         // hack around type specialization
         if TypeId::of::<E>() == TypeId::of::<ProblemDetails>() {
-            Self(
-                <(dyn Any + 'static)>::downcast_ref::<ProblemDetails>(&value)
-                    .unwrap()
-                    .clone(),
-            )
-        } else {
-            Self(
-                ProblemDetails::new()
-                    .with_detail(value.into().to_string())
-                    .with_title("Uncategorized Error"),
-            )
+            if let Some(value) = <(dyn Any + 'static)>::downcast_ref::<ProblemDetails>(&value) {
+                return Self(value.clone());
+            }
         }
+
+        Self(
+            ProblemDetails::new()
+                .with_detail(value.into().to_string())
+                .with_title("Uncategorized Error"),
+        )
     }
 }
 
