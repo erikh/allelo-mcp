@@ -23,16 +23,12 @@ type Result<T> = core::result::Result<T, AppError>;
 pub struct McpRequest {
     pub connection_id: String,
     pub command: String,
-    pub mcp_route: String,
-    pub mcp_route_id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct McpResponse {
     pub connection_id: String,
     pub response: String,
-    pub mcp_route: String,
-    pub mcp_route_id: String,
 }
 
 // input struct for prompt API
