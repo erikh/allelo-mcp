@@ -210,6 +210,10 @@ impl LLMClient {
             builder.reasoning(false)
         };
 
+        for tool in crate::mcp::tool::tool_list().0 {
+            builder = builder.function(tool.into())
+        }
+
         Ok(builder.build()?)
     }
 }

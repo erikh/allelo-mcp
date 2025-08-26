@@ -7,7 +7,7 @@ use rmcp::model::{ListPromptsResult, Prompt, PromptArgument};
 // same, so a lot of this is from/into to ensure these types translate between each other cleanly.
 
 #[derive(Debug, Clone)]
-pub(crate) struct ToolList(Vec<ToolFunction>);
+pub(crate) struct ToolList(pub(crate) Vec<ToolFunction>);
 
 impl Into<ListPromptsResult> for ToolList {
     fn into(self) -> ListPromptsResult {
