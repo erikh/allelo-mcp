@@ -1,12 +1,16 @@
 #![allow(dead_code)]
-use llm::builder::{FunctionBuilder, ParamBuilder};
+use llm::{
+	builder::{FunctionBuilder, ParamBuilder},
+	chat::{FunctionTool, Tool},
+};
 use rmcp::model::{ListPromptsResult, Prompt, PromptArgument};
+use serde::Serialize;
 
 // NOTE: rmcp and llm are server and client implementations of MCP respectively, but they use
 // independent types. Most of the fields are very similar, and the serialized result is exactly the
 // same, so a lot of this is from/into to ensure these types translate between each other cleanly.
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub(crate) struct ToolList(pub(crate) Vec<ToolFunction>);
 
 impl Into<ListPromptsResult> for ToolList {
@@ -18,18 +22,24 @@ impl Into<ListPromptsResult> for ToolList {
 	}
 }
 
-#[derive(Debug, Clone)]
-pub(crate) struct ToolFunction {
-	name: String,
-	description: String,
-	args: Vec<ToolArgument>,
+impl Into<Vec<Tool>> for ToolList {
+	fn into(self) -> Vec<Tool> {
+		self.0.iter().map(|x| x.clone().into()).collect()
+	}
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
+pub(crate) struct ToolFunction {
+	pub(crate) name: String,
+	pub(crate) description: String,
+	pub(crate) args: Vec<ToolArgument>,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub(crate) struct ToolArgument {
-	name: String,
-	description: String,
-	required: bool,
+	pub(crate) name: String,
+	pub(crate) description: String,
+	pub(crate) required: bool,
 }
 
 impl ToolFunction {
@@ -63,6 +73,29 @@ impl Into<Prompt> for ToolFunction {
 			Some(&self.description),
 			self.into_rmcp_arguments(),
 		)
+	}
+}
+
+impl Into<Tool> for ToolFunction {
+	fn into(self) -> Tool {
+		Tool {
+			function: FunctionTool {
+				name: self.name,
+				description: self.description,
+				parameters: self
+					.args
+					.iter()
+					.map(|x| Into::<serde_json::Value>::into(x.clone()))
+					.collect(),
+			},
+			tool_type: "".into(),
+		}
+	}
+}
+
+impl Into<serde_json::Value> for ToolArgument {
+	fn into(self) -> serde_json::Value {
+		serde_json::to_value(self).unwrap()
 	}
 }
 

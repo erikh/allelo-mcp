@@ -1,5 +1,8 @@
 use super::broker::BrokerPipe;
-use crate::api::{llm::LLMClient, server::Config};
+use crate::api::{
+	llm::LLMClient,
+	server::{Config, PromptResponse},
+};
 use anyhow::Result;
 use axum::{
 	extract::FromRequestParts,
@@ -13,7 +16,8 @@ use std::{
 };
 use tokio::sync::Mutex;
 
-pub(crate) type CloneableBrokerPipe = Arc<Mutex<BrokerPipe<String>>>;
+pub(crate) type CloneableBrokerPipe =
+	Arc<Mutex<BrokerPipe<PromptResponse>>>;
 
 #[async_trait::async_trait]
 pub trait PromptClient {
@@ -35,7 +39,7 @@ impl PromptClient for PromptRepeaterClient {
 				mut lock = send.lock() => {
 					tracing::debug!("send lock acquired for: {}", id);
 					tokio::select! {
-						_ = lock.send_message(msg.clone()) => {}
+						_ = lock.send_message(PromptResponse::PromptResponse(msg.clone()).clone()) => {}
 					}
 				}
 				_ = tokio::time::sleep(std::time::Duration::from_millis(100)) => { },

@@ -1,12 +1,18 @@
 use anyhow::Result;
 use futures_util::StreamExt;
-use llm::{builder::LLMBuilder, chat::ChatMessageBuilder};
+use llm::chat::Tool;
+use llm::{
+	builder::LLMBuilder,
+	chat::{ChatMessageBuilder, ToolChoice},
+};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::{
 	Mutex,
 	mpsc::{UnboundedReceiver, unbounded_channel},
 };
+
+use crate::api::server::PromptResponse;
 
 // NOTE: the underlying LLM client's abstraction is not much different than this one. I chose to
 // NIH this so I'd have control of the inner workings. Don't get mad, modifying it to support new
@@ -105,6 +111,7 @@ pub struct LLMClientParams {
 	pub base_url: String,
 	pub api_key: Option<String>,
 	pub timeout: Option<std::time::Duration>,
+	pub force_tools: bool,
 	// FIXME: json schema response support
 }
 
@@ -141,12 +148,43 @@ impl LLMClient {
 
 	pub async fn prompt(
 		&self, prompt: String,
-	) -> Result<UnboundedReceiver<String>> {
-		// FIXME: I can't seem to get this library to stream with ollama
-		let mut stream = self
-			.client
-			.lock()
-			.await
+	) -> Result<UnboundedReceiver<PromptResponse>> {
+		let lock = self.client.lock().await;
+
+		#[cfg(not(test))]
+		let tools: Vec<Tool> = crate::mcp::tool::tool_list()
+			.0
+			.iter()
+			.map(|x| x.clone().into())
+			.collect();
+		#[cfg(test)]
+		let tools: Vec<Tool> = crate::mcp::test_service::test_tool_list()
+			.0
+			.iter()
+			.map(|x| x.clone().into())
+			.collect();
+
+		let response = lock
+			.chat_with_tools(
+				&[ChatMessageBuilder::new(llm::chat::ChatRole::User)
+					.content(prompt.clone())
+					.build()],
+				Some(&tools),
+			)
+			.await?;
+
+		if let Some(tools) = (*response).tool_calls() {
+			for tool in tools {
+				eprintln!(
+					"tool name: {} args: {}",
+					tool.function.name, tool.function.arguments
+				)
+			}
+		}
+
+		drop(response);
+
+		let mut stream = lock
 			.chat_stream(&[ChatMessageBuilder::new(
 				llm::chat::ChatRole::User,
 			)
@@ -158,7 +196,9 @@ impl LLMClient {
 
 		tokio::spawn(async move {
 			while let Some(Ok(item)) = stream.next().await {
-				if let Err(_) = s.send(item) {
+				if let Err(_) =
+					s.send(PromptResponse::PromptResponse(item))
+				{
 					return;
 				}
 			}
@@ -179,6 +219,10 @@ impl LLMClient {
 				builder.backend(llm::builder::LLMBackend::Ollama)
 			}
 		};
+
+		if params.force_tools {
+			builder = builder.tool_choice(ToolChoice::Any)
+		}
 
 		builder = builder
 			.enable_parallel_tool_use(true)
@@ -219,10 +263,6 @@ impl LLMClient {
 		} else {
 			builder.reasoning(false)
 		};
-
-		for tool in crate::mcp::tool::tool_list().0 {
-			builder = builder.function(tool.into())
-		}
 
 		Ok(builder.build()?)
 	}

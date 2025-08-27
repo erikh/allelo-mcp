@@ -1,3 +1,5 @@
+use crate::api::server::PromptResponse;
+
 use super::McpRequest;
 use anyhow::Result;
 use std::{
@@ -68,10 +70,10 @@ where
 #[derive(Debug, Clone, Default)]
 pub struct Broker {
 	mcp: HashMap<uuid::Uuid, Arc<Mutex<BrokerPipe<McpRequest>>>>,
-	prompt: HashMap<uuid::Uuid, Arc<Mutex<BrokerPipe<String>>>>,
+	prompt: HashMap<uuid::Uuid, Arc<Mutex<BrokerPipe<PromptResponse>>>>,
 }
 
-pub(crate) type PromptPipe = Arc<Mutex<BrokerPipe<String>>>;
+pub(crate) type PromptPipe = Arc<Mutex<BrokerPipe<PromptResponse>>>;
 pub(crate) type McpPipe = Arc<Mutex<BrokerPipe<McpRequest>>>;
 
 impl Broker {
@@ -102,7 +104,10 @@ impl Broker {
 
 #[cfg(test)]
 mod tests {
-	use crate::api::server::broker::{Broker, CHANNEL_SIZE};
+	use crate::api::server::{
+		PromptResponse,
+		broker::{Broker, CHANNEL_SIZE},
+	};
 	use anyhow::anyhow;
 	use tokio::sync::mpsc::channel;
 
@@ -123,7 +128,12 @@ mod tests {
 			for _ in 0..CHANNEL_SIZE {
 				let proxy = b.get_prompt(id).unwrap();
 				let mut lock = proxy.lock().await;
-				match lock.send_message(Default::default()).await {
+				match lock
+					.send_message(PromptResponse::PromptResponse(
+						"hello".into(),
+					))
+					.await
+				{
 					Err(e) => s.send(Err(e)).await.unwrap(),
 					_ => {}
 				}
@@ -160,7 +170,13 @@ mod tests {
 			let proxy = b.get_prompt(id).unwrap();
 			let lock = proxy.lock().await;
 			for _ in 0..CHANNEL_SIZE {
-				match lock.sender.send("hello, world!".into()).await {
+				match lock
+					.sender
+					.send(PromptResponse::PromptResponse(
+						"hello, world!".into(),
+					))
+					.await
+				{
 					Err(e) => s2.send(Err(anyhow!(e))).await.unwrap(),
 					_ => {}
 				}
@@ -175,7 +191,7 @@ mod tests {
 			let mut lock = proxy.lock().await;
 			for _ in 0..CHANNEL_SIZE {
 				match lock.next_message().await {
-					Some(x) => {
+					Some(PromptResponse::PromptResponse(x)) => {
 						if x != "hello, world!" {
 							s.send(Err(anyhow!(
 								"input and output didn't match"
@@ -185,7 +201,7 @@ mod tests {
 							return;
 						}
 					}
-					None => {
+					_ => {
 						s.send(Err(anyhow!(
 							"message was not returned"
 						)))

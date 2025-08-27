@@ -165,7 +165,7 @@ async fn prompt_multiplex(
 					let _ = s.send(PromptResponse::McpRequest(output)).await;
 				},
 				Some(output) = prompt_lock.next_message() => {
-					let _ = s.send(PromptResponse::PromptResponse(output)).await;
+					let _ = s.send(output).await;
 				}
 				_ = tokio::time::sleep(std::time::Duration::from_millis(100)) => {}
 			}
