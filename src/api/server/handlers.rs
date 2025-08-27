@@ -1,8 +1,8 @@
 use super::broker::{CHANNEL_SIZE, GLOBAL_BROKER};
 use super::{AppError, Auth, ServerState, ServiceAuth};
-use crate::api::server::broker::{McpPipe, PromptPipe};
 #[cfg(test)]
 use crate::api::server::PromptRepeaterClient;
+use crate::api::server::broker::{McpPipe, PromptPipe};
 use crate::api::server::{CloneableBrokerPipe, Config, PromptClient, PromptLLMClient};
 
 use anyhow::anyhow;
@@ -14,8 +14,8 @@ use axum::{
 use futures_util::stream::Stream;
 use serde::{Deserialize, Serialize};
 use std::{sync::Arc, time::Duration};
-use tokio::sync::mpsc::{channel, Receiver};
-use tokio_stream::{wrappers::ReceiverStream, StreamExt};
+use tokio::sync::mpsc::{Receiver, channel};
+use tokio_stream::{StreamExt, wrappers::ReceiverStream};
 
 type Result<T> = core::result::Result<T, AppError>;
 

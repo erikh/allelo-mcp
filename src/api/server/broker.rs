@@ -6,8 +6,8 @@ use std::{
     time::Instant,
 };
 use tokio::sync::{
-    mpsc::{channel, Receiver, Sender},
     Mutex,
+    mpsc::{Receiver, Sender, channel},
 };
 use uuid::Uuid;
 

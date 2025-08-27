@@ -3,14 +3,14 @@ use super::server::{Input, McpResponse, Metrics, Prompt, SearchResults, Status};
 use crate::api::server::QueryType;
 use crate::{api::server::Search, mcp::service::Service};
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use futures_util::StreamExt;
 use reqwest_eventsource::Event;
 use rmcp::ServiceExt;
 use std::{ops::Deref, sync::Arc};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
-    sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
+    sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel},
 };
 
 type McpPipe = (UnboundedSender<Vec<u8>>, UnboundedReceiver<Vec<u8>>);

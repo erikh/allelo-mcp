@@ -1,7 +1,7 @@
 use allelo_mcp::mcp::service;
 
 use anyhow::Result;
-use rmcp::{transport::sse_server::SseServer, ServiceExt};
+use rmcp::{ServiceExt, transport::sse_server::SseServer};
 
 #[tokio::main]
 async fn main() -> Result<()> {

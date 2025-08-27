@@ -9,10 +9,10 @@ pub use axum_support::*;
 pub use handlers::*;
 
 use axum::{
-    routing::{get, post, put},
     Router,
+    routing::{get, post, put},
 };
-use http::{header::*, Method};
+use http::{Method, header::*};
 use std::sync::Arc;
 use tower::ServiceBuilder;
 use tower_http::cors::{Any as CorsAny, CorsLayer};

@@ -4,8 +4,8 @@ use llm::{builder::LLMBuilder, chat::ChatMessageBuilder};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::{
-    mpsc::{unbounded_channel, UnboundedReceiver},
     Mutex,
+    mpsc::{UnboundedReceiver, unbounded_channel},
 };
 
 // NOTE: the underlying LLM client's abstraction is not much different than this one. I chose to

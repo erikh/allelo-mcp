@@ -1,8 +1,9 @@
 use rmcp::{
+    RoleServer, ServerHandler,
     handler::server::{router::tool::ToolRouter, tool::Parameters},
     model::*,
     service::RequestContext,
-    tool, tool_handler, tool_router, RoleServer, ServerHandler,
+    tool, tool_handler, tool_router,
 };
 
 #[derive(Debug, Clone, Default)]
