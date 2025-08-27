@@ -157,8 +157,7 @@ impl LLMClient {
     }
 
     fn build_client(
-        client_type: LLMClientType,
-        params: LLMClientParams,
+        client_type: LLMClientType, params: LLMClientParams,
     ) -> Result<Box<dyn llm::LLMProvider>> {
         // FIXME: this should probably be simplified. maybe the client type can configure the
         // builder directly.

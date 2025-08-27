@@ -93,11 +93,8 @@ async fn get_prompt(id: Option<uuid::Uuid>) -> Result<PromptControl> {
 }
 
 async fn prompt_client(
-    #[allow(unused)] query_type: Option<QueryType>,
-    config: Config,
-    id: uuid::Uuid,
-    send: CloneableBrokerPipe,
-    msg: String,
+    #[allow(unused)] query_type: Option<QueryType>, config: Config, id: uuid::Uuid,
+    send: CloneableBrokerPipe, msg: String,
 ) {
     #[cfg(test)]
     {
@@ -171,9 +168,7 @@ async fn prompt_multiplex(control: PromptControl) -> Receiver<PromptResponse> {
 }
 
 pub(crate) async fn prompt(
-    Auth(authed): Auth,
-    State(state): State<Arc<ServerState>>,
-    Query(params): Query<PromptType>,
+    Auth(authed): Auth, State(state): State<Arc<ServerState>>, Query(params): Query<PromptType>,
     Json(prompt): Json<Prompt>,
 ) -> Result<Sse<impl Stream<Item = std::result::Result<Event, std::convert::Infallible>>>> {
     if !authed {
@@ -204,9 +199,7 @@ pub(crate) async fn prompt(
 }
 
 pub(crate) async fn mcp_response(
-    Auth(authed): Auth,
-    State(_state): State<Arc<ServerState>>,
-    Json(_response): Json<McpResponse>,
+    Auth(authed): Auth, State(_state): State<Arc<ServerState>>, Json(_response): Json<McpResponse>,
 ) -> Result<()> {
     if !authed {
         return Err(anyhow!("unauthenticated").into());
@@ -226,9 +219,7 @@ pub struct SearchResults {
 }
 
 pub(crate) async fn search(
-    Auth(authed): Auth,
-    State(_state): State<Arc<ServerState>>,
-    Json(_search): Json<Search>,
+    Auth(authed): Auth, State(_state): State<Arc<ServerState>>, Json(_search): Json<Search>,
 ) -> Result<Json<SearchResults>> {
     if !authed {
         return Err(anyhow!("unauthenticated").into());
@@ -243,9 +234,7 @@ pub struct Input {
 }
 
 pub(crate) async fn input(
-    Auth(authed): Auth,
-    State(_state): State<Arc<ServerState>>,
-    Json(_input): Json<Input>,
+    Auth(authed): Auth, State(_state): State<Arc<ServerState>>, Json(_input): Json<Input>,
 ) -> Result<Json<bool>> {
     if !authed {
         return Err(anyhow!("unauthenticated").into());
@@ -258,8 +247,7 @@ pub(crate) async fn input(
 pub struct Metrics {}
 
 pub(crate) async fn metrics(
-    ServiceAuth(authed): ServiceAuth,
-    State(_state): State<Arc<ServerState>>,
+    ServiceAuth(authed): ServiceAuth, State(_state): State<Arc<ServerState>>,
 ) -> Result<Json<Metrics>> {
     if !authed {
         return Err(anyhow!("unauthenticated").into());
@@ -271,8 +259,7 @@ pub(crate) async fn metrics(
 pub struct Status {}
 
 pub(crate) async fn status(
-    ServiceAuth(authed): ServiceAuth,
-    State(_state): State<Arc<ServerState>>,
+    ServiceAuth(authed): ServiceAuth, State(_state): State<Arc<ServerState>>,
 ) -> Result<Json<Status>> {
     if !authed {
         return Err(anyhow!("unauthenticated").into());

@@ -18,10 +18,7 @@ pub(crate) type CloneableBrokerPipe = Arc<Mutex<BrokerPipe<String>>>;
 #[async_trait::async_trait]
 pub trait PromptClient {
     async fn prompt(
-        &self,
-        id: uuid::Uuid,
-        proxy: CloneableBrokerPipe,
-        prompt: String,
+        &self, id: uuid::Uuid, proxy: CloneableBrokerPipe, prompt: String,
     ) -> Result<()>;
 }
 
@@ -116,8 +113,7 @@ impl FromRequestParts<Arc<ServerState>> for Auth {
     type Rejection = AppError;
 
     async fn from_request_parts(
-        _parts: &mut Parts,
-        _state: &Arc<ServerState>,
+        _parts: &mut Parts, _state: &Arc<ServerState>,
     ) -> core::result::Result<Self, Self::Rejection> {
         Ok(Self(true))
     }
@@ -130,8 +126,7 @@ impl FromRequestParts<Arc<ServerState>> for ServiceAuth {
     type Rejection = AppError;
 
     async fn from_request_parts(
-        _parts: &mut Parts,
-        _state: &Arc<ServerState>,
+        _parts: &mut Parts, _state: &Arc<ServerState>,
     ) -> core::result::Result<Self, Self::Rejection> {
         Ok(Self(true))
     }

@@ -66,9 +66,7 @@ impl ServerHandler for Service {
     }
 
     async fn list_prompts(
-        &self,
-        _request: Option<PaginatedRequestParam>,
-        _: RequestContext<RoleServer>,
+        &self, _request: Option<PaginatedRequestParam>, _: RequestContext<RoleServer>,
     ) -> Result<ListPromptsResult, rmcp::ErrorData> {
         Ok(super::tool::tool_list().into())
     }
