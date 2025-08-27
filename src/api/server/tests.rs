@@ -1,5 +1,6 @@
 use super::*;
 use crate::testutil::{default_api_url, shutdown_handle, start_api_server};
+
 use reqwest_eventsource::Event;
 
 #[tokio::test]

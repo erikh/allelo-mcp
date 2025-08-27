@@ -1,4 +1,5 @@
 use crate::api::server::*;
+
 use anyhow::Result;
 
 const DEFAULT_API_URL: &str = "http://localhost:8999";

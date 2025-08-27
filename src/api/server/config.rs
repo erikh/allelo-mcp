@@ -1,9 +1,9 @@
+use crate::api::llm::{LLMClientParams, LLMClientType};
+
 use serde::Deserialize;
 use std::{net::SocketAddr, path::PathBuf};
 use tracing::info;
 use tracing_subscriber::FmtSubscriber;
-
-use crate::api::llm::{LLMClientParams, LLMClientType};
 
 #[derive(Debug, Clone, Deserialize)]
 pub enum LogLevel {

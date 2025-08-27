@@ -1,15 +1,13 @@
-use std::{ops::Deref, sync::Arc};
-
+use super::server::{Input, McpResponse, Metrics, Prompt, SearchResults, Status};
 #[cfg(test)]
 use crate::api::server::QueryType;
-
-use super::server::{Input, McpResponse, Metrics, Prompt, SearchResults, Status};
 use crate::{api::server::Search, mcp::service::Service};
 
 use anyhow::{anyhow, Result};
 use futures_util::StreamExt;
 use reqwest_eventsource::Event;
 use rmcp::ServiceExt;
+use std::{ops::Deref, sync::Arc};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},

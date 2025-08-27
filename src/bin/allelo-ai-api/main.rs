@@ -1,4 +1,5 @@
 use allelo_mcp::api::server::{Config, Server};
+
 use anyhow::Result;
 
 #[tokio::main]

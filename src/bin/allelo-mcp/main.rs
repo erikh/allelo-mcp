@@ -1,4 +1,5 @@
 use allelo_mcp::mcp::service;
+
 use anyhow::Result;
 use rmcp::{transport::sse_server::SseServer, ServiceExt};
 
