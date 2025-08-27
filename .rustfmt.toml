@@ -3,7 +3,7 @@
 
 # NOTE: adjust these two settings and I will track you and take your first born child
 max_width = 72
-hard_tabs = true # the one true way
+hard_tabs = true
 
 edition = "2024"
 reorder_imports = true
