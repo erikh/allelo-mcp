@@ -5,6 +5,7 @@
 max_width = 72
 hard_tabs = true # the one true way
 
+edition = "2024"
 reorder_imports = true
 fn_params_layout = "Compressed"
 #fn_single_line = true
