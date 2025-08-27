@@ -182,7 +182,7 @@ impl LLMClient {
 
 		builder = builder
 			.enable_parallel_tool_use(true)
-			.stream(true) // FIXME: I can't seem to get this library to stream with ollama
+			.stream(true)
 			.model(client_type.to_model())
 			.base_url(params.base_url);
 
