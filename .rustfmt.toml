@@ -1,6 +1,10 @@
 # FIXME: commented out items are only available in nightly channel; enable them as
 #        features become available
 
+# NOTE: adjust these two settings, and I will track you and take your first born child
+max_width = 72
+hard_tabs = true # the one true way
+
 reorder_imports = true
 fn_params_layout = "Compressed"
 #fn_single_line = true
@@ -11,8 +15,6 @@ fn_params_layout = "Compressed"
 #format_macro_matchers = true
 #format_macro_bodies = true
 #format_strings = true
-max_width = 72
-hard_tabs = true # the one true way
 #hex_literal_case = "Upper"
 #imports_indent = "Block"
 #imports_layout = "HorizontalVertical"
