@@ -10,92 +10,94 @@ use rmcp::model::{ListPromptsResult, Prompt, PromptArgument};
 pub(crate) struct ToolList(pub(crate) Vec<ToolFunction>);
 
 impl Into<ListPromptsResult> for ToolList {
-    fn into(self) -> ListPromptsResult {
-        ListPromptsResult {
-            next_cursor: None,
-            prompts: self.0.iter().map(|x| x.clone().into()).collect(),
-        }
-    }
+	fn into(self) -> ListPromptsResult {
+		ListPromptsResult {
+			next_cursor: None,
+			prompts: self.0.iter().map(|x| x.clone().into()).collect(),
+		}
+	}
 }
 
 #[derive(Debug, Clone)]
 pub(crate) struct ToolFunction {
-    name: String,
-    description: String,
-    args: Vec<ToolArgument>,
+	name: String,
+	description: String,
+	args: Vec<ToolArgument>,
 }
 
 #[derive(Debug, Clone)]
 pub(crate) struct ToolArgument {
-    name: String,
-    description: String,
-    required: bool,
+	name: String,
+	description: String,
+	required: bool,
 }
 
 impl ToolFunction {
-    pub(crate) fn required_arguments(&self) -> Vec<String> {
-        let mut v = Vec::new();
+	pub(crate) fn required_arguments(&self) -> Vec<String> {
+		let mut v = Vec::new();
 
-        for item in &self.args {
-            if item.required {
-                v.push(item.name.clone())
-            }
-        }
+		for item in &self.args {
+			if item.required {
+				v.push(item.name.clone())
+			}
+		}
 
-        v
-    }
+		v
+	}
 
-    pub(crate) fn into_rmcp_arguments(&self) -> Option<Vec<PromptArgument>> {
-        if self.args.is_empty() {
-            None
-        } else {
-            Some(self.args.iter().map(|x| x.clone().into()).collect())
-        }
-    }
+	pub(crate) fn into_rmcp_arguments(
+		&self,
+	) -> Option<Vec<PromptArgument>> {
+		if self.args.is_empty() {
+			None
+		} else {
+			Some(self.args.iter().map(|x| x.clone().into()).collect())
+		}
+	}
 }
 
 impl Into<Prompt> for ToolFunction {
-    fn into(self) -> Prompt {
-        Prompt::new(
-            &self.name,
-            Some(&self.description),
-            self.into_rmcp_arguments(),
-        )
-    }
+	fn into(self) -> Prompt {
+		Prompt::new(
+			&self.name,
+			Some(&self.description),
+			self.into_rmcp_arguments(),
+		)
+	}
 }
 
 impl Into<ParamBuilder> for ToolArgument {
-    fn into(self) -> ParamBuilder {
-        ParamBuilder::new(&self.name).description(&self.description)
-    }
+	fn into(self) -> ParamBuilder {
+		ParamBuilder::new(&self.name).description(&self.description)
+	}
 }
 
 impl Into<FunctionBuilder> for ToolFunction {
-    fn into(self) -> FunctionBuilder {
-        let mut builder = FunctionBuilder::new(&self.name)
-            .required(self.required_arguments())
-            .description(&self.description);
+	fn into(self) -> FunctionBuilder {
+		let mut builder = FunctionBuilder::new(&self.name)
+			.required(self.required_arguments())
+			.description(&self.description);
 
-        for arg in self.args {
-            builder = builder.param(arg.into())
-        }
+		for arg in self.args {
+			builder = builder.param(arg.into())
+		}
 
-        builder
-    }
+		builder
+	}
 }
 
 impl Into<PromptArgument> for ToolArgument {
-    fn into(self) -> PromptArgument {
-        PromptArgument {
-            name: self.name,
-            description: Some(self.description),
-            required: Some(self.required),
-        }
-    }
+	fn into(self) -> PromptArgument {
+		PromptArgument {
+			name: self.name,
+			description: Some(self.description),
+			required: Some(self.required),
+		}
+	}
 }
 
 pub(crate) fn tool_list() -> ToolList {
-    ToolList(vec![
+	ToolList(vec![
         ToolFunction {
             name: "all_contacts".into(),
             description: "list of all contacts or friends".into(),

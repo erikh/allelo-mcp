@@ -9,25 +9,27 @@ pub use axum_support::*;
 pub use handlers::*;
 
 use axum::{
-    Router,
-    routing::{get, post, put},
+	Router,
+	routing::{get, post, put},
 };
 use http::{Method, header::*};
 use std::sync::Arc;
 use tower::ServiceBuilder;
 use tower_http::cors::{Any as CorsAny, CorsLayer};
-use tower_http::trace::{DefaultMakeSpan, DefaultOnFailure, DefaultOnRequest};
+use tower_http::trace::{
+	DefaultMakeSpan, DefaultOnFailure, DefaultOnRequest,
+};
 use tracing::Level;
 
 #[derive(Debug, Clone)]
 pub struct Server {
-    router: Router,
-    config: Config,
+	router: Router,
+	config: Config,
 }
 
 impl Server {
-    pub async fn new(config: Config) -> anyhow::Result<Self> {
-        Ok(Self {
+	pub async fn new(config: Config) -> anyhow::Result<Self> {
+		Ok(Self {
             router: Router::new()
                 .route("/prompt", post(prompt))
                 .route("/mcp_response", post(mcp_response))
@@ -65,41 +67,45 @@ impl Server {
                 ),
             config: config.clone(),
         })
-    }
+	}
 
-    pub async fn start(&self) -> anyhow::Result<()> {
-        let handle = axum_server::Handle::new();
-        self.start_with_handle(handle).await
-    }
+	pub async fn start(&self) -> anyhow::Result<()> {
+		let handle = axum_server::Handle::new();
+		self.start_with_handle(handle).await
+	}
 
-    pub async fn start_with_handle(&self, handle: axum_server::Handle) -> anyhow::Result<()> {
-        tokio::spawn(shutdown_signal(handle.clone()));
-        Ok(axum_server::bind(self.config.listen)
-            .handle(handle)
-            .serve(self.router.clone().into_make_service())
-            .await?)
-    }
+	pub async fn start_with_handle(
+		&self, handle: axum_server::Handle,
+	) -> anyhow::Result<()> {
+		tokio::spawn(shutdown_signal(handle.clone()));
+		Ok(axum_server::bind(self.config.listen)
+			.handle(handle)
+			.serve(self.router.clone().into_make_service())
+			.await?)
+	}
 }
 
 async fn shutdown_signal(handle: axum_server::Handle) {
-    let ctrl_c = async {
-        tokio::signal::ctrl_c()
-            .await
-            .expect("failed to install CTRL+C signal handler");
-    };
+	let ctrl_c = async {
+		tokio::signal::ctrl_c()
+			.await
+			.expect("failed to install CTRL+C signal handler");
+	};
 
-    let terminate = async {
-        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
-            .expect("failed to install signal handler")
-            .recv()
-            .await;
-    };
+	let terminate = async {
+		tokio::signal::unix::signal(
+			tokio::signal::unix::SignalKind::terminate(),
+		)
+		.expect("failed to install signal handler")
+		.recv()
+		.await;
+	};
 
-    tokio::select! {
-        _ = ctrl_c => {},
-        _ = terminate => {},
-    }
+	tokio::select! {
+		_ = ctrl_c => {},
+		_ = terminate => {},
+	}
 
-    tracing::warn!("signal received, starting graceful shutdown");
-    handle.graceful_shutdown(Some(std::time::Duration::from_secs(10)));
+	tracing::warn!("signal received, starting graceful shutdown");
+	handle.graceful_shutdown(Some(std::time::Duration::from_secs(10)));
 }
