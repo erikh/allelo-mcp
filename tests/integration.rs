@@ -13,7 +13,7 @@ async fn test_server_tool_use() {
 	let handle = start_api_server(Config {
 		listen: "127.0.0.1:19000".parse().unwrap(),
 		log_level: LogLevel::Info,
-		client_type: Some(LLMClientType::OllamaVicuna),
+		client_type: Some(LLMClientType::OllamaQwen25),
 		client_params: Some(LLMClientParams {
 			base_url: "http://localhost:11434".into(),
 			api_key: None,
@@ -58,7 +58,10 @@ async fn test_server_tool_use() {
 		if let Event::Message(m) = r.recv().await.unwrap().unwrap() {
 			let obj: PromptResponse =
 				serde_json::from_str(&m.data).unwrap();
-			eprintln!("{}", m.data);
+			eprintln!(
+				"LLM response w/ tools for '{}': {}",
+				prompt, m.data
+			);
 			assert!(matches!(obj, PromptResponse::PromptResponse(_)));
 			i += 1;
 		}
@@ -95,7 +98,10 @@ async fn test_server_tool_use() {
 		while let Some(Ok(Event::Message(m))) = r.recv().await {
 			let obj: PromptResponse =
 				serde_json::from_str(&m.data).unwrap();
-			eprintln!("{}", m.data);
+			eprintln!(
+				"LLM response w/ tools for '{}': {}",
+				prompt, m.data,
+			);
 			assert!(matches!(obj, PromptResponse::PromptResponse(_)));
 			i += 1;
 		}
@@ -113,7 +119,7 @@ async fn test_server_tool_use() {
 async fn test_llm_client() {
 	async fn run_prompt(prompt: &str) {
 		let client = LLMClient::new(
-			LLMClientType::OllamaVicuna,
+			LLMClientType::OllamaQwen25,
 			LLMClientParams {
 				base_url: "http://localhost:11434".into(),
 				api_key: None,
@@ -147,7 +153,7 @@ async fn test_real_server_prompt() {
 	let handle = start_api_server(Config {
 		listen: "127.0.0.1:8999".parse().unwrap(),
 		log_level: LogLevel::Info,
-		client_type: Some(LLMClientType::OllamaVicuna),
+		client_type: Some(LLMClientType::OllamaQwen25),
 		client_params: Some(LLMClientParams {
 			base_url: "http://localhost:11434".into(),
 			api_key: None,
@@ -189,7 +195,10 @@ async fn test_real_server_prompt() {
 		if let Event::Message(m) = r.recv().await.unwrap().unwrap() {
 			let obj: PromptResponse =
 				serde_json::from_str(&m.data).unwrap();
-			eprintln!("{}", m.data);
+			eprintln!(
+				"LLM response w/o tools for '{}': {}",
+				prompt, m.data
+			);
 			assert!(matches!(obj, PromptResponse::PromptResponse(_)));
 			i += 1;
 		}
@@ -228,7 +237,10 @@ async fn test_real_server_prompt() {
 		if let Event::Message(m) = r.recv().await.unwrap().unwrap() {
 			let obj: PromptResponse =
 				serde_json::from_str(&m.data).unwrap();
-			eprintln!("{}", m.data);
+			eprintln!(
+				"LLM response w/o tools for '{}': {}",
+				prompt, m.data
+			);
 			assert!(matches!(obj, PromptResponse::PromptResponse(_)));
 			i += 1;
 		}

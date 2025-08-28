@@ -67,9 +67,8 @@ pub enum LLMClientType {
 	// Qwen production model
 	#[serde(rename = "ollama_qwen3")]
 	OllamaQwen3,
-	// Vicuna low-memory model for integration testing
-	#[serde(rename = "ollama_vicuna")]
-	OllamaVicuna,
+	#[serde(rename = "ollama_qwen2.5")]
+	OllamaQwen25,
 }
 
 impl LLMClientType {
@@ -78,7 +77,7 @@ impl LLMClientType {
 			// NOTE: each enum corresponds to both a PLATFORM and MODEL. See `build_client` in
 			// LLMClient below.
 			LLMClientType::OllamaQwen3 => "qwen3:30b".into(),
-			LLMClientType::OllamaVicuna => "vicuna:7b".into(),
+			LLMClientType::OllamaQwen25 => "qwen2.5:7b".into(),
 		}
 	}
 
@@ -94,7 +93,8 @@ impl LLMClientType {
 				system_prompt: None,
 				reasoning: None,
 			},
-			LLMClientType::OllamaVicuna => LLMClientOptions {
+			// FIXME: clone of vicuna model parameters. probably needs adjustment
+			LLMClientType::OllamaQwen25 => LLMClientOptions {
 				max_tokens: 512,
 				temperature: 0.7,
 				top_p: 0.95,
@@ -216,7 +216,7 @@ impl LLMClient {
 
 		builder = match client_type {
 			LLMClientType::OllamaQwen3
-			| LLMClientType::OllamaVicuna => {
+			| LLMClientType::OllamaQwen25 => {
 				builder.backend(llm::builder::LLMBackend::Ollama)
 			}
 		};
